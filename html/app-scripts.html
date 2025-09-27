@@ -477,6 +477,9 @@
       if (!this.currentUser) return;
 
       try {
+        // 打刻ボタンを一時的に無効化
+        this.disableAllPunchButtons();
+
         // 現在の状態を取得
         const statusResult = await this.callGASFunction('getCurrentStatus', this.currentUser.employeeNumber);
         this.updateStatusDisplay(statusResult.status);
@@ -508,6 +511,8 @@
       } catch (error) {
         console.error('勤怠データ読み込みエラー:', error);
         this.showMessage('勤怠データの読み込みに失敗しました。', 'error');
+        // エラー時もボタンを復元（未出勤状態として扱う）
+        this.updateAttendanceButtons('未出勤');
       }
     }
 
@@ -536,6 +541,25 @@
       if (statusIcon) {
         statusIcon.textContent = config.icon;
       }
+    }
+
+    /**
+     * 全打刻ボタンを無効化
+     */
+    disableAllPunchButtons() {
+      const buttons = {
+        clockIn: document.getElementById('btnClockIn'),
+        clockOut: document.getElementById('btnClockOut'),
+        breakStart: document.getElementById('btnBreakStart'),
+        breakEnd: document.getElementById('btnBreakEnd')
+      };
+
+      Object.values(buttons).forEach(btn => {
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        }
+      });
     }
 
     /**
@@ -740,7 +764,7 @@
               <th>日付</th>
               <th>打刻内容</th>
               <th>時刻</th>
-              <th>詳細</th>
+              <th>編集</th>
             </tr>
           </thead>
           <tbody>
@@ -748,13 +772,27 @@
 
       if (records && records.length > 0) {
         records.forEach(record => {
+          let editButtons = '';
+
+          // 打刻系のアクションのみ編集可能
+          if (['clockIn', 'clockOut', 'breakStart', 'breakEnd'].includes(record.action)) {
+            editButtons = `
+              <button class="btn btn-edit" onclick="window.timesApp.editAction(${record.rowNumber})">
+                タイプ編集
+              </button>
+              <button class="btn btn-edit" onclick="window.timesApp.editTime(${record.rowNumber})">
+                時間編集
+              </button>
+            `;
+          }
+
           html += `
             <tr>
               <td>${record.rowNumber}</td>
               <td class="date-cell">${record.date}</td>
               <td>${this.getActionLabel(record.action)}</td>
               <td class="time-cell">${record.timestamp}</td>
-              <td>${record.details || ''}</td>
+              <td class="edit-cell">${editButtons}</td>
             </tr>
           `;
         });
@@ -806,6 +844,84 @@
         } else {
           metricsTitle.textContent = `📊 ${this.currentCalendarMonth}月の勤怠`;
         }
+      }
+    }
+
+    /**
+     * 打刻タイプの編集
+     */
+    async editAction(rowNumber) {
+      const validActions = ['clockIn', 'clockOut', 'breakStart', 'breakEnd', 'halfDay', 'fullDay', 'holidayWork'];
+      const actionLabels = {
+        clockIn: '出勤',
+        clockOut: '退勤',
+        breakStart: '中抜け開始',
+        breakEnd: '中抜け終了',
+        halfDay: '半休',
+        fullDay: '全休',
+        holidayWork: '休日出勤'
+      };
+
+      const options = validActions.map(action => `${action} (${actionLabels[action]})`).join('\n');
+      const newAction = prompt(`新しい打刻タイプを入力してください:\n\n${options}`);
+
+      if (!newAction) return;
+
+      const actionKey = newAction.trim().split(' ')[0];
+      if (!validActions.includes(actionKey)) {
+        alert('無効な打刻タイプです。');
+        return;
+      }
+
+      this.showLoading();
+
+      try {
+        const sheetName = `${this.currentCalendarYear}${String(this.currentCalendarMonth).padStart(2, '0')}`;
+        const result = await this.callGASFunction('updatePunchAction', sheetName, rowNumber, actionKey, '');
+
+        if (result.success) {
+          await this.loadCalendarData();
+        } else {
+          this.showMessage(result.message, 'error');
+        }
+      } catch (error) {
+        console.error('打刻タイプ編集エラー:', error);
+        this.showMessage('打刻タイプの編集に失敗しました。', 'error');
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 打刻時間の編集
+     */
+    async editTime(rowNumber) {
+      const newTime = prompt('新しい時刻を「yyyy-MM-dd HH:mm:ss」の形式で入力してください。\n例: 2024-09-27 09:00:00');
+
+      if (!newTime) return;
+
+      // 簡単な形式チェック
+      if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(newTime)) {
+        alert('正しい形式で入力してください。\n例: 2024-09-27 09:00:00');
+        return;
+      }
+
+      this.showLoading();
+
+      try {
+        const sheetName = `${this.currentCalendarYear}${String(this.currentCalendarMonth).padStart(2, '0')}`;
+        const result = await this.callGASFunction('updatePunchTime', sheetName, rowNumber, newTime, '');
+
+        if (result.success) {
+          await this.loadCalendarData();
+        } else {
+          this.showMessage(result.message, 'error');
+        }
+      } catch (error) {
+        console.error('打刻時間編集エラー:', error);
+        this.showMessage('打刻時間の編集に失敗しました。', 'error');
+      } finally {
+        this.hideLoading();
       }
     }
 

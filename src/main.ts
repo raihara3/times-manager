@@ -986,12 +986,14 @@ function updatePunchTime(
     // 時刻を更新
     sheet.getRange(rowNumber, 4).setValue(newTime);
 
-    // コメントを詳細欄に追加
-    const currentDetails = sheet.getRange(rowNumber, 5).getValue();
-    const updatedDetails = currentDetails
-      ? `${currentDetails} | 修正: ${comment}`
-      : `修正: ${comment}`;
-    sheet.getRange(rowNumber, 5).setValue(updatedDetails);
+    // コメントがある場合のみ詳細欄に追加
+    if (comment && comment.trim() !== '') {
+      const currentDetails = sheet.getRange(rowNumber, 5).getValue();
+      const updatedDetails = currentDetails
+        ? `${currentDetails} | 修正: ${comment}`
+        : `修正: ${comment}`;
+      sheet.getRange(rowNumber, 5).setValue(updatedDetails);
+    }
 
     return {
       success: true,
@@ -1021,12 +1023,14 @@ function updatePunchAction(
     // アクションを更新
     sheet.getRange(rowNumber, 3).setValue(newAction);
 
-    // コメントを詳細欄に追加
-    const currentDetails = sheet.getRange(rowNumber, 5).getValue();
-    const updatedDetails = currentDetails
-      ? `${currentDetails} | 修正: ${comment}`
-      : `修正: ${comment}`;
-    sheet.getRange(rowNumber, 5).setValue(updatedDetails);
+    // コメントがある場合のみ詳細欄に追加
+    if (comment && comment.trim() !== '') {
+      const currentDetails = sheet.getRange(rowNumber, 5).getValue();
+      const updatedDetails = currentDetails
+        ? `${currentDetails} | 修正: ${comment}`
+        : `修正: ${comment}`;
+      sheet.getRange(rowNumber, 5).setValue(updatedDetails);
+    }
 
     return {
       success: true,
