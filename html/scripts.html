@@ -1,0 +1,589 @@
+<script>
+  /**
+   * Times. - フロントエンド JavaScript
+   * フェーズ1: ログイン機能の実装
+   */
+
+  class TimesApp {
+    constructor() {
+      this.currentUser = null;
+      this.init();
+    }
+
+    /**
+     * アプリケーションの初期化
+     */
+    init() {
+      // ページ判定
+      this.isHomePage = window.location.href.includes("page=home");
+
+      if (this.isHomePage) {
+        this.initHomePage();
+      } else {
+        this.initLoginPage();
+      }
+    }
+
+    /**
+     * ログインページの初期化
+     */
+    initLoginPage() {
+      this.setupLoginForm();
+      this.setupRegisterForm();
+      this.setupFormSwitching();
+      this.loadSavedEmployeeNumber();
+    }
+
+    /**
+     * ホームページの初期化
+     */
+    initHomePage() {
+      this.loadUserFromStorage();
+      this.setupNavigation();
+      this.setupActions();
+      this.updateUserDisplay();
+    }
+
+    /**
+     * ログインフォームのセットアップ
+     */
+    setupLoginForm() {
+      const loginForm = document.getElementById("loginForm");
+      const loginBtn = document.getElementById("loginBtn");
+
+      if (loginForm) {
+        loginForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await this.handleLogin();
+        });
+      }
+    }
+
+    /**
+     * 登録フォームのセットアップ
+     */
+    setupRegisterForm() {
+      const registerForm = document.getElementById("registerForm");
+
+      if (registerForm) {
+        registerForm.addEventListener("submit", async (e) => {
+          e.preventDefault();
+          await this.handleRegister();
+        });
+      }
+    }
+
+    /**
+     * フォーム切り替えのセットアップ
+     */
+    setupFormSwitching() {
+      const showRegisterBtn = document.getElementById("showRegisterBtn");
+      const showLoginBtn = document.getElementById("showLoginBtn");
+
+      if (showRegisterBtn) {
+        showRegisterBtn.addEventListener("click", () => {
+          this.showRegisterForm();
+        });
+      }
+
+      if (showLoginBtn) {
+        showLoginBtn.addEventListener("click", () => {
+          this.showLoginForm();
+        });
+      }
+    }
+
+    /**
+     * ナビゲーションのセットアップ
+     */
+    setupNavigation() {
+      const navBtns = document.querySelectorAll(".nav-btn");
+
+      navBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const section = btn.dataset.section;
+          if (section) {
+            this.switchSection(section);
+            this.updateNavActive(btn);
+          }
+        });
+      });
+    }
+
+    /**
+     * アクションボタンのセットアップ
+     */
+    setupActions() {
+      const viewSpreadsheetBtn = document.getElementById("viewSpreadsheetBtn");
+      const logoutBtn = document.getElementById("logoutBtn");
+      const messageCloseBtn = document.getElementById("messageCloseBtn");
+
+      if (viewSpreadsheetBtn) {
+        viewSpreadsheetBtn.addEventListener("click", () => {
+          this.openSpreadsheet();
+        });
+      }
+
+      if (logoutBtn) {
+        logoutBtn.addEventListener("click", () => {
+          this.logout();
+        });
+      }
+
+      if (messageCloseBtn) {
+        messageCloseBtn.addEventListener("click", () => {
+          this.hideMessage();
+        });
+      }
+    }
+
+    /**
+     * 保存された社員番号の読み込み
+     */
+    loadSavedEmployeeNumber() {
+      const saved = localStorage.getItem("times_employee_number");
+      if (saved) {
+        const employeeNumberInput = document.getElementById("employeeNumber");
+        if (employeeNumberInput) {
+          employeeNumberInput.value = saved;
+        }
+      }
+    }
+
+    /**
+     * ローカルストレージからユーザー情報を読み込み
+     */
+    loadUserFromStorage() {
+      const userData = localStorage.getItem("times_user_data");
+      if (userData) {
+        this.currentUser = JSON.parse(userData);
+      }
+    }
+
+    /**
+     * ログイン処理
+     */
+    async handleLogin() {
+      const employeeNumber = document
+        .getElementById("employeeNumber")
+        .value.trim();
+
+      if (!employeeNumber) {
+        this.showMessage("社員番号を入力してください。", "error");
+        return;
+      }
+
+      this.showLoading();
+      this.disableButton("loginBtn");
+
+      try {
+        const result = await this.callGASFunction("loginUser", employeeNumber);
+
+        console.log("ログイン結果:", result);
+
+        if (!result) {
+          this.showMessage("サーバーからの応答がありません。", "error");
+          return;
+        }
+
+        if (result.success) {
+          // 社員番号を保存
+          localStorage.setItem("times_employee_number", employeeNumber);
+
+          // ユーザー情報を保存
+          localStorage.setItem("times_user_data", JSON.stringify(result.user));
+
+          // ホームページにリダイレクト
+          window.location.href =
+            window.location.href.split("?")[0] + "?page=home";
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("ログインエラー:", error);
+        this.showMessage(
+          "ログインに失敗しました。しばらく後に再試行してください。",
+          "error"
+        );
+      } finally {
+        this.hideLoading();
+        this.enableButton("loginBtn");
+      }
+    }
+
+    /**
+     * ユーザー登録処理
+     */
+    async handleRegister() {
+      const employeeNumber = document
+        .getElementById("regEmployeeNumber")
+        .value.trim();
+      const name = document.getElementById("regName").value.trim();
+
+      if (!employeeNumber || !name) {
+        this.showMessage("社員番号と名前を入力してください。", "error");
+        return;
+      }
+
+      this.showLoading();
+      this.disableButton("registerBtn");
+
+      try {
+        const result = await this.callGASFunction(
+          "registerUser",
+          employeeNumber,
+          name
+        );
+
+        if (result.success) {
+          this.showMessage(result.message, "success");
+
+          // フォームをクリア
+          document.getElementById("regEmployeeNumber").value = "";
+          document.getElementById("regName").value = "";
+
+          // ログインフォームに切り替え
+          setTimeout(() => {
+            this.showLoginForm();
+
+            // 社員番号を自動入力
+            const loginEmployeeInput =
+              document.getElementById("employeeNumber");
+            if (loginEmployeeInput) {
+              loginEmployeeInput.value = employeeNumber;
+            }
+          }, 2000);
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("登録エラー:", error);
+        this.showMessage(
+          "登録に失敗しました。しばらく後に再試行してください。",
+          "error"
+        );
+      } finally {
+        this.hideLoading();
+        this.enableButton("registerBtn");
+      }
+    }
+
+    /**
+     * ログアウト処理
+     */
+    logout() {
+      if (confirm("ログアウトしますか？")) {
+        // ローカルストレージをクリア
+        localStorage.removeItem("times_user_data");
+
+        // ログインページにリダイレクト
+        window.location.href = window.location.href.split("?")[0];
+      }
+    }
+
+    /**
+     * スプレッドシートを開く
+     */
+    async openSpreadsheet() {
+      this.showLoading();
+
+      try {
+        const result = await this.callGASFunction("getSpreadsheetInfo");
+
+        if (result.url) {
+          window.open(result.url, "_blank");
+        } else {
+          this.showMessage(
+            "スプレッドシートの情報を取得できませんでした。",
+            "error"
+          );
+        }
+      } catch (error) {
+        console.error("スプレッドシート取得エラー:", error);
+        this.showMessage("スプレッドシートを開けませんでした。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 登録フォームを表示
+     */
+    showRegisterForm() {
+      const loginSection = document.getElementById("loginSection");
+      const registerSection = document.getElementById("registerSection");
+
+      if (loginSection && registerSection) {
+        loginSection.style.display = "none";
+        registerSection.style.display = "block";
+      }
+
+      this.hideMessage();
+    }
+
+    /**
+     * ログインフォームを表示
+     */
+    showLoginForm() {
+      const loginSection = document.getElementById("loginSection");
+      const registerSection = document.getElementById("registerSection");
+
+      if (loginSection && registerSection) {
+        loginSection.style.display = "block";
+        registerSection.style.display = "none";
+      }
+
+      this.hideMessage();
+    }
+
+    /**
+     * セクションの切り替え
+     */
+    switchSection(sectionName) {
+      // 全セクションを非表示
+      const sections = document.querySelectorAll(".content-section");
+      sections.forEach((section) => {
+        section.classList.remove("active");
+      });
+
+      // 指定セクションを表示
+      const targetSection =
+        sectionName === "coming-soon"
+          ? document.getElementById("comingSoonSection")
+          : document.getElementById("dashboardSection");
+
+      if (targetSection) {
+        targetSection.classList.add("active");
+      }
+    }
+
+    /**
+     * ナビゲーションのアクティブ状態更新
+     */
+    updateNavActive(activeBtn) {
+      const navBtns = document.querySelectorAll(".nav-btn");
+      navBtns.forEach((btn) => btn.classList.remove("active"));
+      activeBtn.classList.add("active");
+    }
+
+    /**
+     * ユーザー表示の更新
+     */
+    updateUserDisplay() {
+      if (!this.currentUser) return;
+
+      const userName = document.getElementById("userName");
+      const userEmployeeNumber = document.getElementById("userEmployeeNumber");
+      const userRegisteredAt = document.getElementById("userRegisteredAt");
+
+      if (userName) {
+        userName.textContent = this.currentUser.name;
+      }
+
+      if (userEmployeeNumber) {
+        userEmployeeNumber.textContent = this.currentUser.employeeNumber;
+      }
+
+      if (userRegisteredAt && this.currentUser.registeredAt) {
+        const date = new Date(this.currentUser.registeredAt);
+        userRegisteredAt.textContent = date.toLocaleDateString("ja-JP");
+      }
+    }
+
+    /**
+     * メッセージ表示
+     */
+    showMessage(message, type = "info") {
+      if (this.isHomePage) {
+        // ホームページ用のメッセージ表示
+        const messageArea = document.getElementById("messageArea");
+        const messageText = document.getElementById("messageText");
+
+        if (messageArea && messageText) {
+          messageText.textContent = message;
+          messageText.className = `message ${type}`;
+          messageArea.style.display = "flex";
+        }
+      } else {
+        // ログインページ用のメッセージ表示
+        const messageArea = document.getElementById("messageArea");
+        const messageContent = document.getElementById("messageContent");
+
+        if (messageArea && messageContent) {
+          messageContent.textContent = message;
+          messageContent.className = `message ${type}`;
+          messageArea.style.display = "block";
+
+          // 3秒後に自動非表示
+          setTimeout(() => {
+            this.hideMessage();
+          }, 3000);
+        }
+      }
+    }
+
+    /**
+     * メッセージ非表示
+     */
+    hideMessage() {
+      const messageArea = document.getElementById("messageArea");
+      if (messageArea) {
+        messageArea.style.display = "none";
+      }
+    }
+
+    /**
+     * ローディング表示
+     */
+    showLoading() {
+      const loading = document.getElementById("loading");
+      if (loading) {
+        loading.style.display = "flex";
+      }
+    }
+
+    /**
+     * ローディング非表示
+     */
+    hideLoading() {
+      const loading = document.getElementById("loading");
+      if (loading) {
+        loading.style.display = "none";
+      }
+    }
+
+    /**
+     * ボタン無効化
+     */
+    disableButton(buttonId) {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.disabled = true;
+        button.style.opacity = "0.6";
+      }
+    }
+
+    /**
+     * ボタン有効化
+     */
+    enableButton(buttonId) {
+      const button = document.getElementById(buttonId);
+      if (button) {
+        button.disabled = false;
+        button.style.opacity = "1";
+      }
+    }
+
+    /**
+     * GAS関数呼び出し
+     */
+    async callGASFunction(functionName, ...args) {
+      console.log(`GAS関数呼び出し: ${functionName}`, args);
+      console.log("google.script の状態:", {
+        google: !!window.google,
+        script: !!(window.google && window.google.script),
+        run: !!(
+          window.google &&
+          window.google.script &&
+          window.google.script.run
+        ),
+      });
+
+      return new Promise((resolve, reject) => {
+        if (
+          !window.google ||
+          !window.google.script ||
+          !window.google.script.run
+        ) {
+          const error = "Google Apps Script が利用できません";
+          console.error(error);
+          reject(new Error(error));
+          return;
+        }
+
+        const timeout = setTimeout(() => {
+          console.error(
+            `タイムアウト: ${functionName} の実行に30秒以上かかりました`
+          );
+          reject(
+            new Error(`関数 ${functionName} の実行がタイムアウトしました`)
+          );
+        }, 30000);
+
+        try {
+          google.script.run
+            .withSuccessHandler((result) => {
+              clearTimeout(timeout);
+              console.log(`GAS関数成功: ${functionName}`, result);
+              console.log("結果の型:", typeof result);
+              console.log("結果がnull:", result === null);
+              console.log("結果がundefined:", result === undefined);
+              resolve(result);
+            })
+            .withFailureHandler((error) => {
+              clearTimeout(timeout);
+              console.error(`GAS関数エラー: ${functionName}`, error);
+              console.error("エラーの詳細:", {
+                message: error.message,
+                stack: error.stack,
+                name: error.name,
+              });
+              reject(error);
+            })
+            [functionName](...args);
+
+          console.log(`google.script.run.${functionName} を実行しました`);
+        } catch (e) {
+          clearTimeout(timeout);
+          console.error("google.script.run の実行中にエラー:", e);
+          reject(e);
+        }
+      });
+    }
+  }
+
+  // DOM読み込み完了後にアプリケーションを初期化
+  document.addEventListener("DOMContentLoaded", () => {
+    window.timesApp = new TimesApp();
+  });
+
+  // ページ読み込み時にローディングを非表示
+  window.addEventListener("load", () => {
+    const loading = document.getElementById("loading");
+    if (loading) {
+      loading.style.display = "none";
+    }
+  });
+
+  // エラーハンドリング
+  window.addEventListener("error", (event) => {
+    console.error("JavaScript エラー:", event.error);
+
+    // ユーザーにエラーメッセージを表示
+    if (window.timesApp) {
+      window.timesApp.showMessage(
+        "アプリケーションでエラーが発生しました。ページを再読み込みしてください。",
+        "error"
+      );
+    }
+  });
+
+  // オフライン検知
+  window.addEventListener("offline", () => {
+    if (window.timesApp) {
+      window.timesApp.showMessage(
+        "インターネット接続が切断されました。機能が制限される可能性があります。",
+        "warning"
+      );
+    }
+  });
+
+  window.addEventListener("online", () => {
+    if (window.timesApp) {
+      window.timesApp.showMessage(
+        "インターネット接続が復旧しました。",
+        "success"
+      );
+    }
+  });
+</script>

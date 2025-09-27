@@ -1,0 +1,37 @@
+{
+  "name": "times-manager",
+  "version": "1.0.0",
+  "description": "Google Apps Script based time and attendance management system",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc && npm run copy-html && npm run clean-dist",
+    "copy-html": "cp -r html/* dist/",
+    "clean-dist": "rm -f dist/*.d.ts dist/*.d.ts.map dist/*.js.map",
+    "watch": "tsc --watch",
+    "login": "clasp login",
+    "create": "clasp create --type webapp --title \"工数管理システム\"",
+    "push": "npm run build && clasp push",
+    "deploy": "clasp deploy",
+    "open": "clasp open",
+    "logs": "clasp logs",
+    "versions": "clasp versions",
+    "setup": "npm run create && npm run push",
+    "dev": "npm run build && clasp push",
+    "lint": "tsc --noEmit",
+    "clean": "rm -rf dist/*"
+  },
+  "keywords": [
+    "google-apps-script",
+    "time-management",
+    "attendance",
+    "spreadsheet"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^3.0.6-alpha",
+    "@types/google-apps-script": "^1.0.80",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {}
+}

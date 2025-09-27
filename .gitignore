@@ -1,0 +1,28 @@
+# Node modules
+node_modules/
+
+# clasp build output
+dist/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+
+# IDE files
+.vscode/
+.idea/
+
+# MacOS
+.DS_Store
+
+# clasp credentials
+.clasp.json
+
+# Logs
+*.log
+npm-debug.log*
+
+plan/
