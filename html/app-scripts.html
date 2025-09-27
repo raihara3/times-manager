@@ -1,12 +1,12 @@
 <script>
   /**
-   * Times. - フロントエンド JavaScript
-   * フェーズ1: ログイン機能の実装
+   * Times. - Single Page Application
    */
 
   class TimesApp {
     constructor() {
       this.currentUser = null;
+      this.currentView = 'login';
       this.init();
     }
 
@@ -14,33 +14,74 @@
      * アプリケーションの初期化
      */
     init() {
-      // ページ判定
-      this.isHomePage = window.location.href.includes("page=home");
+      this.checkUserSession();
+      this.setupEventListeners();
+    }
 
-      if (this.isHomePage) {
-        this.initHomePage();
+    /**
+     * ユーザーセッションの確認
+     */
+    checkUserSession() {
+      const userData = localStorage.getItem("times_user_data");
+      if (userData) {
+        this.currentUser = JSON.parse(userData);
+        this.showHomeView();
       } else {
-        this.initLoginPage();
+        this.showLoginView();
       }
     }
 
     /**
-     * ログインページの初期化
+     * イベントリスナーのセットアップ
      */
-    initLoginPage() {
+    setupEventListeners() {
+      // ログイン関連
       this.setupLoginForm();
       this.setupRegisterForm();
       this.setupFormSwitching();
+
+      // ナビゲーション
+      this.setupNavigation();
+
+      // アクション
+      this.setupActions();
+
+      // 保存された社員番号の読み込み
       this.loadSavedEmployeeNumber();
     }
 
     /**
-     * ホームページの初期化
+     * ログインビューを表示
      */
-    initHomePage() {
-      this.loadUserFromStorage();
-      this.setupNavigation();
-      this.setupActions();
+    showLoginView() {
+      const loginView = document.getElementById('loginView');
+      const homeView = document.getElementById('homeView');
+
+      if (loginView && homeView) {
+        loginView.style.display = 'block';
+        loginView.classList.add('active');
+        homeView.style.display = 'none';
+        homeView.classList.remove('active');
+      }
+
+      this.currentView = 'login';
+    }
+
+    /**
+     * ホームビューを表示
+     */
+    showHomeView() {
+      const loginView = document.getElementById('loginView');
+      const homeView = document.getElementById('homeView');
+
+      if (loginView && homeView) {
+        loginView.style.display = 'none';
+        loginView.classList.remove('active');
+        homeView.style.display = 'block';
+        homeView.classList.add('active');
+      }
+
+      this.currentView = 'home';
       this.updateUserDisplay();
     }
 
@@ -49,7 +90,6 @@
      */
     setupLoginForm() {
       const loginForm = document.getElementById("loginForm");
-      const loginBtn = document.getElementById("loginBtn");
 
       if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
@@ -151,16 +191,6 @@
     }
 
     /**
-     * ローカルストレージからユーザー情報を読み込み
-     */
-    loadUserFromStorage() {
-      const userData = localStorage.getItem("times_user_data");
-      if (userData) {
-        this.currentUser = JSON.parse(userData);
-      }
-    }
-
-    /**
      * ログイン処理
      */
     async handleLogin() {
@@ -192,10 +222,11 @@
 
           // ユーザー情報を保存
           localStorage.setItem("times_user_data", JSON.stringify(result.user));
+          this.currentUser = result.user;
 
-          // ホームページにリダイレクト
-          window.location.href =
-            window.location.href.split("?")[0] + "?page=home";
+          // ホームビューに切り替え
+          this.showHomeView();
+          this.showMessage("ログインしました！", "success");
         } else {
           this.showMessage(result.message, "error");
         }
@@ -275,9 +306,11 @@
       if (confirm("ログアウトしますか？")) {
         // ローカルストレージをクリア
         localStorage.removeItem("times_user_data");
+        this.currentUser = null;
 
-        // ログインページにリダイレクト
-        window.location.href = window.location.href.split("?")[0];
+        // ログインビューに切り替え
+        this.showLoginView();
+        this.showMessage("ログアウトしました。", "success");
       }
     }
 
@@ -343,16 +376,28 @@
       // 全セクションを非表示
       const sections = document.querySelectorAll(".content-section");
       sections.forEach((section) => {
+        section.style.display = 'none';
         section.classList.remove("active");
       });
 
       // 指定セクションを表示
-      const targetSection =
-        sectionName === "coming-soon"
-          ? document.getElementById("comingSoonSection")
-          : document.getElementById("dashboardSection");
+      let targetSection;
+      switch(sectionName) {
+        case 'dashboard':
+          targetSection = document.getElementById("dashboardSection");
+          break;
+        case 'attendance':
+          targetSection = document.getElementById("attendanceSection");
+          break;
+        case 'coming-soon':
+          targetSection = document.getElementById("comingSoonSection");
+          break;
+        default:
+          targetSection = document.getElementById("dashboardSection");
+      }
 
       if (targetSection) {
+        targetSection.style.display = 'block';
         targetSection.classList.add("active");
       }
     }
@@ -394,8 +439,8 @@
      * メッセージ表示
      */
     showMessage(message, type = "info") {
-      if (this.isHomePage) {
-        // ホームページ用のメッセージ表示
+      if (this.currentView === 'home') {
+        // ホームビュー用のメッセージ表示
         const messageArea = document.getElementById("messageArea");
         const messageText = document.getElementById("messageText");
 
@@ -403,11 +448,16 @@
           messageText.textContent = message;
           messageText.className = `message ${type}`;
           messageArea.style.display = "flex";
+
+          // 3秒後に自動非表示
+          setTimeout(() => {
+            this.hideMessage();
+          }, 3000);
         }
       } else {
-        // ログインページ用のメッセージ表示
-        const messageArea = document.getElementById("messageArea");
-        const messageContent = document.getElementById("messageContent");
+        // ログインビュー用のメッセージ表示
+        const messageArea = document.getElementById("messageAreaLogin");
+        const messageContent = document.getElementById("messageContentLogin");
 
         if (messageArea && messageContent) {
           messageContent.textContent = message;
@@ -427,8 +477,13 @@
      */
     hideMessage() {
       const messageArea = document.getElementById("messageArea");
+      const messageAreaLogin = document.getElementById("messageAreaLogin");
+
       if (messageArea) {
         messageArea.style.display = "none";
+      }
+      if (messageAreaLogin) {
+        messageAreaLogin.style.display = "none";
       }
     }
 
@@ -479,15 +534,6 @@
      */
     async callGASFunction(functionName, ...args) {
       console.log(`GAS関数呼び出し: ${functionName}`, args);
-      console.log("google.script の状態:", {
-        google: !!window.google,
-        script: !!(window.google && window.google.script),
-        run: !!(
-          window.google &&
-          window.google.script &&
-          window.google.script.run
-        ),
-      });
 
       return new Promise((resolve, reject) => {
         if (
@@ -515,19 +561,11 @@
             .withSuccessHandler((result) => {
               clearTimeout(timeout);
               console.log(`GAS関数成功: ${functionName}`, result);
-              console.log("結果の型:", typeof result);
-              console.log("結果がnull:", result === null);
-              console.log("結果がundefined:", result === undefined);
               resolve(result);
             })
             .withFailureHandler((error) => {
               clearTimeout(timeout);
               console.error(`GAS関数エラー: ${functionName}`, error);
-              console.error("エラーの詳細:", {
-                message: error.message,
-                stack: error.stack,
-                name: error.name,
-              });
               reject(error);
             })
             [functionName](...args);

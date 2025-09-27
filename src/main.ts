@@ -7,24 +7,12 @@ let SPREADSHEET_ID: string | null = null;
 
 /**
  * Webアプリケーションのエントリポイント
- * ログイン画面またはホーム画面を表示
+ * シングルページアプリケーションのHTML
  */
-function doGet(
-  e: GoogleAppsScript.Events.DoGet
-): GoogleAppsScript.HTML.HtmlOutput {
-  const page = e.parameter.page || "login";
-
-  if (page === "home") {
-    return HtmlService.createTemplateFromFile("home")
-      .evaluate()
-      .setTitle("Times. - ホーム")
-      .addMetaTag("viewport", "width=device-width, initial-scale=1.0")
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  }
-
-  return HtmlService.createTemplateFromFile("index")
+function doGet(): GoogleAppsScript.HTML.HtmlOutput {
+  return HtmlService.createTemplateFromFile("app")
     .evaluate()
-    .setTitle("Times. - ログイン")
+    .setTitle("Times.")
     .addMetaTag("viewport", "width=device-width, initial-scale=1.0")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
