@@ -1056,7 +1056,46 @@
 
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
-        // 全案件一覧を取得（オープン案件のみ）
+        // 担当案件用のクローズボタンの初期状態を設定
+        this.updateAssignedClosedProjectsButton(false);
+
+        // 全案件一覧は初期状態では読み込まない（ボタンクリック時のみ）
+        this.resetProjectsList();
+      } catch (error) {
+        console.error("工数データ読み込みエラー:", error);
+        this.showMessage("工数データの読み込みに失敗しました。", "error");
+      }
+    }
+
+    /**
+     * 全案件一覧を初期状態にリセット
+     */
+    resetProjectsList() {
+      const container = document.getElementById("projectsList");
+      if (container) {
+        container.innerHTML = `
+          <div class="initial-message">
+            <div class="message-icon">📂</div>
+            <h4>全案件一覧</h4>
+            <p>上の「全案件を読み込み」ボタンをクリックして案件一覧を表示してください。</p>
+          </div>
+        `;
+      }
+
+      // ボタンの状態をリセット
+      this.updateClosedProjectsButton(false);
+    }
+
+    /**
+     * 全案件一覧の読み込み
+     */
+    async loadAllProjects(includeClosed = false) {
+      if (!this.currentUser) return;
+
+      try {
+        this.showLoading();
+
+        // 全案件一覧を取得
         console.log(
           "getAllProjects呼び出し開始:",
           this.currentUser.employeeNumber
@@ -1064,17 +1103,19 @@
         const projectsResult = await this.callGASFunction(
           "getAllProjects",
           this.currentUser.employeeNumber,
-          false
+          includeClosed
         );
         console.log("getAllProjects結果:", projectsResult);
 
         this.renderProjectsList(projectsResult.data || []);
 
         // クローズ案件表示ボタンの状態を更新
-        this.updateClosedProjectsButton(false);
+        this.updateClosedProjectsButton(includeClosed);
       } catch (error) {
-        console.error("工数データ読み込みエラー:", error);
-        this.showMessage("工数データの読み込みに失敗しました。", "error");
+        console.error("全案件読み込みエラー:", error);
+        this.showMessage("全案件の読み込みに失敗しました。", "error");
+      } finally {
+        this.hideLoading();
       }
     }
 
@@ -1101,7 +1142,9 @@
       container.innerHTML = projects
         .map(
           (project) => `
-        <div class="project-card assigned-project">
+        <div class="project-card assigned-project ${
+          project.status === "close" ? "closed" : ""
+        }">
           <div class="project-header">
             <div class="project-info">
               <div class="project-id">${project.projectId}</div>
@@ -1306,7 +1349,7 @@
           <thead>
             <tr>
               <th>日付</th>
-              <th>社員番号</th>
+              <th>担当者</th>
               <th>工数</th>
               <th>メモ</th>
             </tr>
@@ -1317,7 +1360,7 @@
                 (detail) => `
               <tr>
                 <td class="date-cell">${detail.date}</td>
-                <td>${detail.employeeNumber}</td>
+                <td>${detail.employeeName || detail.employeeNumber}</td>
                 <td class="hours-cell">${detail.hours}h</td>
                 <td class="memo-cell" title="${detail.memo}">${detail.memo}</td>
               </tr>
@@ -1368,7 +1411,7 @@
         );
 
         if (result.success) {
-          this.showMessage("案件を作成しました", "success");
+          // this.showMessage("案件を作成しました", "success");
           event.target.reset();
           this.loadWorkloadData();
         } else {
@@ -1525,18 +1568,54 @@
         );
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
-        // 全案件一覧を更新
-        const projectsResult = await this.callGASFunction(
-          "getAllProjects",
-          this.currentUser.employeeNumber,
-          !showClosed
-        );
-        this.renderProjectsList(projectsResult.data || []);
+        // 全案件一覧を更新（既に読み込み済みの場合のみ）
+        const projectsContainer = document.getElementById("projectsList");
+        if (
+          projectsContainer &&
+          !projectsContainer.querySelector(".initial-message")
+        ) {
+          const projectsResult = await this.callGASFunction(
+            "getAllProjects",
+            this.currentUser.employeeNumber,
+            !showClosed
+          );
+          this.renderProjectsList(projectsResult.data || []);
+        }
 
         this.updateClosedProjectsButton(!showClosed);
       } catch (error) {
         console.error("クローズ案件表示切り替えエラー:", error);
         this.showMessage("案件一覧の更新に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 担当案件のクローズ案件表示切り替え
+     */
+    async toggleAssignedClosedProjects() {
+      if (!this.currentUser) return;
+
+      try {
+        this.showLoading();
+
+        const showAssignedClosed =
+          document.getElementById("showAssignedClosedBtn").style.display ===
+          "none";
+
+        // 担当案件一覧のみを更新
+        const assignedProjectsResult = await this.callGASFunction(
+          "getUserProjects",
+          this.currentUser.employeeNumber,
+          !showAssignedClosed
+        );
+        this.renderAssignedProjectsList(assignedProjectsResult.data || []);
+
+        this.updateAssignedClosedProjectsButton(!showAssignedClosed);
+      } catch (error) {
+        console.error("担当案件クローズ表示切り替えエラー:", error);
+        this.showMessage("担当案件一覧の更新に失敗しました。", "error");
       } finally {
         this.hideLoading();
       }
@@ -1559,8 +1638,29 @@
         if (result.success) {
           this.showMessage("案件を自分に割り当てました", "success");
 
-          // 担当案件一覧と全案件一覧を更新
-          await this.loadWorkloadData();
+          // 担当案件一覧を更新
+          const assignedResult = await this.callGASFunction(
+            "getUserProjects",
+            this.currentUser.employeeNumber,
+            false
+          );
+          this.renderAssignedProjectsList(assignedResult.data || []);
+
+          // 全案件一覧が既に読み込まれている場合は更新
+          const projectsContainer = document.getElementById("projectsList");
+          if (
+            projectsContainer &&
+            !projectsContainer.querySelector(".initial-message")
+          ) {
+            const showClosed =
+              document.getElementById("showClosedBtn").style.display === "none";
+            const projectsResult = await this.callGASFunction(
+              "getAllProjects",
+              this.currentUser.employeeNumber,
+              showClosed
+            );
+            this.renderProjectsList(projectsResult.data || []);
+          }
         } else {
           this.showMessage(result.message, "error");
         }
@@ -1591,8 +1691,29 @@
         if (result.success) {
           this.showMessage("案件の割り当てを解除しました", "success");
 
-          // 担当案件一覧と全案件一覧を更新
-          await this.loadWorkloadData();
+          // 担当案件一覧を更新
+          const assignedResult = await this.callGASFunction(
+            "getUserProjects",
+            this.currentUser.employeeNumber,
+            false
+          );
+          this.renderAssignedProjectsList(assignedResult.data || []);
+
+          // 全案件一覧が既に読み込まれている場合は更新
+          const projectsContainer = document.getElementById("projectsList");
+          if (
+            projectsContainer &&
+            !projectsContainer.querySelector(".initial-message")
+          ) {
+            const showClosed =
+              document.getElementById("showClosedBtn").style.display === "none";
+            const projectsResult = await this.callGASFunction(
+              "getAllProjects",
+              this.currentUser.employeeNumber,
+              showClosed
+            );
+            this.renderProjectsList(projectsResult.data || []);
+          }
         } else {
           this.showMessage(result.message, "error");
         }
@@ -1610,6 +1731,22 @@
     updateClosedProjectsButton(showingClosed) {
       const showBtn = document.getElementById("showClosedBtn");
       const hideBtn = document.getElementById("hideClosedBtn");
+
+      if (showingClosed) {
+        showBtn.style.display = "none";
+        hideBtn.style.display = "inline-flex";
+      } else {
+        showBtn.style.display = "inline-flex";
+        hideBtn.style.display = "none";
+      }
+    }
+
+    /**
+     * 担当案件のクローズ案件表示ボタンの状態更新
+     */
+    updateAssignedClosedProjectsButton(showingClosed) {
+      const showBtn = document.getElementById("showAssignedClosedBtn");
+      const hideBtn = document.getElementById("hideAssignedClosedBtn");
 
       if (showingClosed) {
         showBtn.style.display = "none";
@@ -1653,6 +1790,14 @@
         cancelBtn.addEventListener("click", () => this.closeWorkloadModal());
       }
 
+      // 全案件読み込みボタン
+      const loadAllProjectsBtn = document.getElementById("loadAllProjectsBtn");
+      if (loadAllProjectsBtn) {
+        loadAllProjectsBtn.addEventListener("click", () =>
+          this.loadAllProjects(false)
+        );
+      }
+
       // クローズ案件表示ボタン
       const showClosedBtn = document.getElementById("showClosedBtn");
       if (showClosedBtn) {
@@ -1665,6 +1810,24 @@
       if (hideClosedBtn) {
         hideClosedBtn.addEventListener("click", () =>
           this.toggleClosedProjects()
+        );
+      }
+
+      // クローズ案件表示ボタン（担当案件一覧用）
+      const showAssignedClosedBtn = document.getElementById(
+        "showAssignedClosedBtn"
+      );
+      if (showAssignedClosedBtn) {
+        showAssignedClosedBtn.addEventListener("click", () =>
+          this.toggleAssignedClosedProjects()
+        );
+      }
+      const hideAssignedClosedBtn = document.getElementById(
+        "hideAssignedClosedBtn"
+      );
+      if (hideAssignedClosedBtn) {
+        hideAssignedClosedBtn.addEventListener("click", () =>
+          this.toggleAssignedClosedProjects()
         );
       }
 

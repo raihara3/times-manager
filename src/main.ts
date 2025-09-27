@@ -202,6 +202,40 @@ function loginUser(employeeNumber: string): {
 }
 
 /**
+ * 社員番号からユーザー名を取得
+ * @param employeeNumber 社員番号
+ * @returns ユーザー名（見つからない場合は社員番号をそのまま返す）
+ */
+function getUserNameByEmployeeNumber(employeeNumber: string): string {
+  try {
+    if (!employeeNumber) {
+      return "";
+    }
+
+    const spreadsheet = getOrCreateSpreadsheet();
+    const sheet = spreadsheet.getSheetByName("users");
+
+    if (!sheet) {
+      return employeeNumber;
+    }
+
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+
+    for (let i = 1; i < values.length; i++) {
+      if (values[i][0].toString() === employeeNumber) {
+        return values[i][1].toString();
+      }
+    }
+
+    return employeeNumber;
+  } catch (error) {
+    console.error("ユーザー名取得エラー:", error);
+    return employeeNumber;
+  }
+}
+
+/**
  * スプレッドシート情報の取得
  * @returns スプレッドシートのURL
  */
@@ -1559,6 +1593,7 @@ function getProjectWorkloadSummary(
       details.push({
         date: formatDate(date),
         employeeNumber: recordEmployeeNumber,
+        employeeName: getUserNameByEmployeeNumber(recordEmployeeNumber.toString()),
         hours: workloadHours,
         memo: memo || "",
       });
