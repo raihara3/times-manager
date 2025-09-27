@@ -1215,7 +1215,7 @@
           <div class="accordion-content" id="accordion-assigned-${
             project.projectId
           }">
-            ${this.renderWorkloadDetails(project.workloadDetails)}
+            ${this.renderWorkloadDetails(project.workloadDetails, project.projectId, project.name)}
           </div>
         </div>
       `
@@ -1328,7 +1328,7 @@
             </button>
           </div>
           <div class="accordion-content" id="accordion-${project.projectId}">
-            ${this.renderWorkloadDetails(project.workloadDetails)}
+            ${this.renderWorkloadDetails(project.workloadDetails, project.projectId, project.name)}
           </div>
         </div>
       `
@@ -1339,7 +1339,7 @@
     /**
      * 工数詳細テーブルの描画
      */
-    renderWorkloadDetails(details) {
+    renderWorkloadDetails(details, projectId, projectName) {
       if (!details || details.length === 0) {
         return '<div class="loading-text">工数記録がありません</div>';
       }
@@ -1352,17 +1352,24 @@
               <th>担当者</th>
               <th>工数</th>
               <th>メモ</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
             ${details
               .map(
                 (detail) => `
-              <tr>
+              <tr data-workload-id="${detail.id}" data-project-id="${detail.projectId}">
                 <td class="date-cell">${detail.date}</td>
                 <td>${detail.employeeName || detail.employeeNumber}</td>
                 <td class="hours-cell">${detail.hours}h</td>
                 <td class="memo-cell" title="${detail.memo}">${detail.memo}</td>
+                <td class="action-cell">
+                  <button class="btn btn-sm btn-edit" onclick="window.timesApp.editWorkload('${detail.id}', '${projectId}', '${projectName}', '${detail.date}', ${detail.hours}, '${(detail.memo || '').replace(/'/g, "\\'")}')">
+                    <span class="btn-icon">✏️</span>
+                    編集
+                  </button>
+                </td>
               </tr>
             `
               )
@@ -1451,6 +1458,37 @@
       document.getElementById("workloadModal").style.display = "none";
       document.getElementById("workloadForm").reset();
       this.currentProject = null;
+      this.editingWorkload = null;
+
+      // ボタンのテキストを元に戻す
+      const submitBtn = document.getElementById("submitWorkloadBtn");
+      submitBtn.querySelector(".btn-text").textContent = "工数を記録";
+      document.getElementById("modalTitle").textContent = "⏱️ 工数入力";
+    }
+
+    /**
+     * 工数編集
+     */
+    editWorkload(workloadId, projectId, projectName, date, hours, memo) {
+      // 編集モードの設定
+      this.editingWorkload = {
+        id: workloadId,
+        projectId: projectId,
+        projectName: projectName
+      };
+
+      // フォームに既存データを入力
+      document.getElementById("workloadDate").value = date;
+      document.getElementById("workloadHours").value = hours;
+      document.getElementById("workloadMemo").value = memo;
+
+      // モーダルタイトルとボタンテキストを編集モード用に変更
+      document.getElementById("modalTitle").textContent = "⏱️ 工数編集";
+      const submitBtn = document.getElementById("submitWorkloadBtn");
+      submitBtn.querySelector(".btn-text").textContent = "変更を保存";
+
+      // モーダルを表示
+      document.getElementById("workloadModal").style.display = "flex";
     }
 
     /**
@@ -1459,7 +1497,11 @@
     async handleWorkloadSubmission(event) {
       event.preventDefault();
 
-      if (!this.currentUser || !this.currentProject) return;
+      // 編集モードか新規作成モードかチェック
+      const isEditMode = !!this.editingWorkload;
+
+      if (!this.currentUser && !isEditMode) return;
+      if (!this.currentProject && !isEditMode) return;
 
       try {
         this.showLoading();
@@ -1469,26 +1511,42 @@
         const hours = parseFloat(formData.get("workloadHours"));
         const memo = formData.get("workloadMemo") || "";
 
-        const result = await this.callGASFunction(
-          "recordWorkload",
-          this.currentProject.id,
-          this.currentProject.name,
-          this.currentUser.employeeNumber,
-          date,
-          hours,
-          memo
-        );
+        let result;
+
+        if (isEditMode) {
+          // 編集モード - recordWorkload関数を使用（同日同ユーザーの場合は上書き）
+          result = await this.callGASFunction(
+            "recordWorkload",
+            this.editingWorkload.projectId,
+            this.editingWorkload.projectName || '',
+            this.currentUser.employeeNumber,
+            date,
+            hours,
+            memo
+          );
+        } else {
+          // 新規作成モード
+          result = await this.callGASFunction(
+            "recordWorkload",
+            this.currentProject.id,
+            this.currentProject.name,
+            this.currentUser.employeeNumber,
+            date,
+            hours,
+            memo
+          );
+        }
 
         if (result.success) {
-          // this.showMessage('工数を記録しました', 'success');
+          this.showMessage(isEditMode ? '工数を更新しました' : '工数を記録しました', 'success');
           this.closeWorkloadModal();
           this.loadWorkloadData();
         } else {
           this.showMessage(result.message, "error");
         }
       } catch (error) {
-        console.error("工数記録エラー:", error);
-        this.showMessage("工数の記録に失敗しました。", "error");
+        console.error("工数処理エラー:", error);
+        this.showMessage(isEditMode ? "工数の更新に失敗しました。" : "工数の記録に失敗しました。", "error");
       } finally {
         this.hideLoading();
       }

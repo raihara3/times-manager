@@ -1630,21 +1630,37 @@ function recordWorkload(
     const data = workloadSheet.getDataRange().getValues();
     let existingRowIndex = -1;
 
+    console.log(`工数記録チェック開始 - 日付: ${date}, 社員番号: ${employeeNumber}`);
+    console.log(`既存データ行数: ${data.length}`);
+
     for (let i = 1; i < data.length; i++) {
-      if (formatDate(data[i][0]) === date && data[i][1] === employeeNumber) {
+      const existingDate = formatDate(data[i][0]);
+      const existingEmployeeNumber = data[i][1].toString();
+
+      console.log(`行${i}: 既存日付=${existingDate}, 既存社員番号=${existingEmployeeNumber}`);
+      console.log(`比較: "${existingDate}" === "${date}" && "${existingEmployeeNumber}" === "${employeeNumber}"`);
+
+      if (existingDate === date && existingEmployeeNumber === employeeNumber) {
         existingRowIndex = i + 1;
+        console.log(`既存記録発見！行番号: ${existingRowIndex}`);
         break;
       }
     }
 
+    console.log(`最終結果 - existingRowIndex: ${existingRowIndex}`);
+
     if (existingRowIndex > 0) {
       // 既存記録を更新
+      console.log(`既存記録を更新: 行${existingRowIndex}, 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`);
       workloadSheet
         .getRange(existingRowIndex, 1, 1, 4)
         .setValues([[new Date(date), employeeNumber, hours, memo]]);
+      console.log(`既存記録の更新完了`);
     } else {
       // 新規記録を追加
+      console.log(`新規記録を追加: 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`);
       workloadSheet.appendRow([new Date(date), employeeNumber, hours, memo]);
+      console.log(`新規記録の追加完了`);
     }
 
     return {
@@ -1799,10 +1815,29 @@ function unassignProjectFromUser(
  */
 function formatDate(date: Date | string): string {
   if (typeof date === "string") {
-    return date;
+    // 既に文字列の場合、YYYY-MM-DD形式であることを確認
+    if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return date;
+    }
+    // その他の文字列形式の場合はDateオブジェクトに変換してフォーマット
+    const d = new Date(date);
+    if (isNaN(d.getTime())) {
+      console.warn(`無効な日付文字列: ${date}`);
+      return date; // 無効な場合は元の文字列を返す
+    }
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   }
 
+  // Dateオブジェクトの場合
   const d = new Date(date);
+  if (isNaN(d.getTime())) {
+    console.warn(`無効なDateオブジェクト: ${date}`);
+    return String(date);
+  }
+
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
