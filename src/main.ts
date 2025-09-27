@@ -1,5 +1,5 @@
 /**
- * Times. - 工数管理システム
+ * .Times - 工数管理システム
  * フェーズ1: ログイン機能の実装
  * フェーズ2: 勤怠管理機能の実装
  */
@@ -13,6 +13,12 @@ const ATTENDANCE_SPREADSHEET_ID =
     "CALENDAR_SPREADSHEET_ID"
   ) || "";
 
+// 案件管理用スプレッドシートIDをプロパティストアから取得
+const PROJECTS_SPREADSHEET_ID =
+  PropertiesService.getScriptProperties().getProperty(
+    "PROJECTS_SPREADSHEET_ID"
+  ) || "";
+
 /**
  * Webアプリケーションのエントリポイント
  * シングルページアプリケーションのHTML
@@ -20,7 +26,7 @@ const ATTENDANCE_SPREADSHEET_ID =
 function doGet(): GoogleAppsScript.HTML.HtmlOutput {
   return HtmlService.createTemplateFromFile("app")
     .evaluate()
-    .setTitle("Times.")
+    .setTitle(".Times")
     .addMetaTag("viewport", "width=device-width, initial-scale=1.0")
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
@@ -50,7 +56,7 @@ function getOrCreateSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsheet {
   }
 
   // 新しいスプレッドシートを作成
-  const spreadsheet = SpreadsheetApp.create("Times. ユーザーデータベース");
+  const spreadsheet = SpreadsheetApp.create(".Times ユーザーデータベース");
   spreadsheetId = spreadsheet.getId();
   properties.setProperty("USER_SPREADSHEET_ID", spreadsheetId);
 
@@ -987,7 +993,7 @@ function updatePunchTime(
     sheet.getRange(rowNumber, 4).setValue(newTime);
 
     // コメントがある場合のみ詳細欄に追加
-    if (comment && comment.trim() !== '') {
+    if (comment && comment.trim() !== "") {
       const currentDetails = sheet.getRange(rowNumber, 5).getValue();
       const updatedDetails = currentDetails
         ? `${currentDetails} | 修正: ${comment}`
@@ -1024,7 +1030,7 @@ function updatePunchAction(
     sheet.getRange(rowNumber, 3).setValue(newAction);
 
     // コメントがある場合のみ詳細欄に追加
-    if (comment && comment.trim() !== '') {
+    if (comment && comment.trim() !== "") {
       const currentDetails = sheet.getRange(rowNumber, 5).getValue();
       const updatedDetails = currentDetails
         ? `${currentDetails} | 修正: ${comment}`
@@ -1210,6 +1216,733 @@ function testSpreadsheetConnection(): {
     return {
       success: false,
       message: "スプレッドシート接続失敗: " + String(error),
+    };
+  }
+}
+
+// ====================================
+// 工数管理機能
+// ====================================
+
+/**
+ * 案件管理用スプレッドシートの取得または作成
+ * @returns Spreadsheet オブジェクト
+ */
+function getOrCreateProjectsSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsheet {
+  const properties = PropertiesService.getScriptProperties();
+  let spreadsheetId = properties.getProperty("PROJECTS_SPREADSHEET_ID");
+
+  if (spreadsheetId) {
+    try {
+      return SpreadsheetApp.openById(spreadsheetId);
+    } catch (error) {
+      console.error("既存の案件スプレッドシートが見つかりません:", error);
+    }
+  }
+
+  // 新しい案件スプレッドシートを作成
+  const spreadsheet = SpreadsheetApp.create("Times - 案件管理");
+  spreadsheetId = spreadsheet.getId();
+
+  // スプレッドシートIDを保存
+  properties.setProperty("PROJECTS_SPREADSHEET_ID", spreadsheetId);
+
+  // デフォルトシートを削除
+  const defaultSheet = spreadsheet.getSheets()[0];
+
+  // projectsシートを作成
+  const projectsSheet = spreadsheet.insertSheet("projects");
+  projectsSheet
+    .getRange(1, 1, 1, 4)
+    .setValues([["案件ID", "案件名", "案件概要", "ステータス"]]);
+
+  // project_assignmentsシートを作成
+  const assignmentsSheet = spreadsheet.insertSheet("project_assignments");
+  assignmentsSheet.getRange(1, 1, 1, 2).setValues([["社員番号", "案件ID"]]);
+
+  // デフォルトシートを削除
+  if (
+    defaultSheet.getName() !== "projects" &&
+    defaultSheet.getName() !== "project_assignments"
+  ) {
+    spreadsheet.deleteSheet(defaultSheet);
+  }
+
+  console.log("新しい案件スプレッドシートを作成しました。ID:", spreadsheetId);
+  return spreadsheet;
+}
+
+/**
+ * 案件スプレッドシート内のタブを取得または作成
+ * @param projectId 案件ID
+ * @param projectName 案件名
+ * @returns Sheet オブジェクト
+ */
+function getOrCreateProjectTab(
+  projectId: string,
+  projectName: string
+): GoogleAppsScript.Spreadsheet.Sheet {
+  const spreadsheet = getOrCreateProjectsSpreadsheet();
+  const tabName = `${projectId}_${projectName}`;
+
+  let sheet = spreadsheet.getSheetByName(tabName);
+  if (!sheet) {
+    sheet = spreadsheet.insertSheet(tabName);
+    sheet
+      .getRange(1, 1, 1, 4)
+      .setValues([["日付", "社員番号", "工数", "メモ"]]);
+  }
+
+  return sheet;
+}
+
+/**
+ * 案件を作成
+ */
+function createProject(
+  name: string,
+  description: string,
+  employeeNumber: string
+): { success: boolean; message: string; data?: any } {
+  try {
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+
+    // projectsシートを取得
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+    if (!projectsSheet) {
+      throw new Error("projectsシートが見つかりません");
+    }
+
+    // 新しい案件IDを生成
+    const lastRow = projectsSheet.getLastRow();
+    let newProjectId = "PROJ001";
+
+    if (lastRow > 1) {
+      const lastProjectId = projectsSheet.getRange(lastRow, 1).getValue();
+      const lastNumber = parseInt(lastProjectId.replace("PROJ", ""));
+      newProjectId = `PROJ${(lastNumber + 1).toString().padStart(3, "0")}`;
+    }
+
+    // 案件を追加
+    projectsSheet.appendRow([newProjectId, name, description, "open"]);
+
+    // 案件担当者を追加
+    assignProjectToUser(newProjectId, employeeNumber);
+
+    // 工数記録用タブを作成
+    getOrCreateProjectTab(newProjectId, name);
+
+    return {
+      success: true,
+      message: "案件を作成しました",
+      data: { projectId: newProjectId, name, description },
+    };
+  } catch (error) {
+    console.error("案件作成エラー:", error);
+    return {
+      success: false,
+      message: "案件の作成に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 案件をユーザーに割り当て
+ */
+function assignProjectToUser(
+  projectId: string,
+  employeeNumber: string
+): { success: boolean; message: string } {
+  try {
+    // ユーザースプレッドシートを取得
+    const userSpreadsheet = getOrCreateSpreadsheet();
+
+    // project_assignmentsシートを取得または作成
+    let assignmentsSheet = userSpreadsheet.getSheetByName(
+      "project_assignments"
+    );
+    if (!assignmentsSheet) {
+      assignmentsSheet = userSpreadsheet.insertSheet("project_assignments");
+      assignmentsSheet.getRange(1, 1, 1, 2).setValues([["社員番号", "案件ID"]]);
+
+      // ヘッダースタイルの設定
+      const headerRange = assignmentsSheet.getRange(1, 1, 1, 2);
+      headerRange.setBackground("#4a90e2");
+      headerRange.setFontColor("#ffffff");
+      headerRange.setFontWeight("bold");
+
+      console.log("project_assignmentsシートを作成しました");
+    }
+
+    // 既存の割り当てをチェック
+    const data = assignmentsSheet.getDataRange().getValues();
+    for (let i = 1; i < data.length; i++) {
+      if (
+        data[i][1] === projectId &&
+        data[i][0].toString() === employeeNumber
+      ) {
+        return {
+          success: true,
+          message: "既に割り当て済みです",
+        };
+      }
+    }
+
+    // 新しい割り当てを追加
+    assignmentsSheet.appendRow([employeeNumber, projectId]);
+
+    console.log(`案件 ${projectId} を社員 ${employeeNumber} に割り当てました`);
+
+    return {
+      success: true,
+      message: "案件を割り当てました",
+    };
+  } catch (error) {
+    console.error("案件割り当てエラー:", error);
+    return {
+      success: false,
+      message: "案件の割り当てに失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * ユーザーに割り当てられた案件一覧を取得
+ */
+function getUserProjects(
+  employeeNumber: string,
+  includeClosed: boolean = false
+): { success: boolean; message: string; data?: any[] } {
+  try {
+    console.log(
+      `getUserProjects開始 - 社員番号: ${employeeNumber}, includeClosed: ${includeClosed}`
+    );
+
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    console.log("案件スプレッドシート取得成功:", spreadsheet.getName());
+
+    // ユーザースプレッドシートからproject_assignmentsシートの割り当てられた案件IDを取得
+    const userSpreadsheet = getOrCreateSpreadsheet();
+    const assignmentsSheet = userSpreadsheet.getSheetByName(
+      "project_assignments"
+    );
+    if (!assignmentsSheet) {
+      console.log("project_assignmentsシートが見つかりません");
+      return {
+        success: true,
+        message: "案件が見つかりません",
+        data: [],
+      };
+    }
+
+    const assignmentData = assignmentsSheet.getDataRange().getValues();
+    console.log("assignmentData:", assignmentData);
+
+    const userProjectIds = assignmentData
+      .slice(1)
+      .filter((row) => row[0].toString() === employeeNumber)
+      .map((row) => row[1]);
+
+    console.log(
+      `社員 ${employeeNumber} に割り当てられた案件ID:`,
+      userProjectIds
+    );
+
+    if (userProjectIds.length === 0) {
+      console.log("割り当てられた案件がありません");
+      return {
+        success: true,
+        message: "割り当てられた案件がありません",
+        data: [],
+      };
+    }
+
+    // projectsシートから案件詳細を取得
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+    if (!projectsSheet) {
+      console.log("projectsシートが見つかりません");
+      return {
+        success: true,
+        message: "案件マスタが見つかりません",
+        data: [],
+      };
+    }
+
+    const projectData = projectsSheet.getDataRange().getValues();
+    console.log("projectData:", projectData);
+
+    const projects = [];
+
+    for (const projectId of userProjectIds) {
+      const projectRow = projectData.find((row) => row[0] === projectId);
+      console.log(`案件ID ${projectId} の詳細:`, projectRow);
+
+      if (projectRow) {
+        const status = projectRow[3];
+        if (includeClosed || status === "open") {
+          // 工数サマリーを取得
+          const workloadSummary = getProjectWorkloadSummary(
+            projectId,
+            projectRow[1],
+            employeeNumber
+          );
+          console.log(`案件 ${projectId} の工数サマリー:`, workloadSummary);
+
+          projects.push({
+            projectId: projectRow[0],
+            name: projectRow[1],
+            description: projectRow[2],
+            status: status,
+            myWorkload: workloadSummary.myWorkload,
+            totalWorkload: workloadSummary.totalWorkload,
+            workloadDetails: workloadSummary.details,
+          });
+        }
+      }
+    }
+
+    // 案件ID順でソート
+    projects.sort((a, b) => a.projectId.localeCompare(b.projectId));
+
+    console.log(`案件一覧取得完了: ${projects.length} 件`, projects);
+
+    return {
+      success: true,
+      message: "案件一覧を取得しました",
+      data: projects,
+    };
+  } catch (error) {
+    console.error("案件一覧取得エラー:", error);
+    return {
+      success: false,
+      message: "案件一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 案件の工数サマリーを取得
+ */
+function getProjectWorkloadSummary(
+  projectId: string,
+  projectName: string,
+  employeeNumber: string
+): { myWorkload: number; totalWorkload: number; details: any[] } {
+  try {
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    const workloadSheetName = `${projectId}_${projectName}`;
+    const workloadSheet = spreadsheet.getSheetByName(workloadSheetName);
+
+    if (!workloadSheet) {
+      return { myWorkload: 0, totalWorkload: 0, details: [] };
+    }
+
+    const data = workloadSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return { myWorkload: 0, totalWorkload: 0, details: [] };
+    }
+
+    let myWorkload = 0;
+    let totalWorkload = 0;
+    const details = [];
+
+    for (let i = 1; i < data.length; i++) {
+      const [date, recordEmployeeNumber, hours, memo] = data[i];
+      const workloadHours = parseFloat(hours) || 0;
+
+      totalWorkload += workloadHours;
+
+      if (recordEmployeeNumber.toString() === employeeNumber) {
+        myWorkload += workloadHours;
+      }
+
+      details.push({
+        date: formatDate(date),
+        employeeNumber: recordEmployeeNumber,
+        hours: workloadHours,
+        memo: memo || "",
+      });
+    }
+
+    // 日付順でソート（降順）
+    details.sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    return { myWorkload, totalWorkload, details };
+  } catch (error) {
+    console.error("工数サマリー取得エラー:", error);
+    return { myWorkload: 0, totalWorkload: 0, details: [] };
+  }
+}
+
+/**
+ * 工数を記録
+ */
+function recordWorkload(
+  projectId: string,
+  projectName: string,
+  employeeNumber: string,
+  date: string,
+  hours: number,
+  memo: string = ""
+): { success: boolean; message: string } {
+  try {
+    // 案件タブを取得または作成
+    const workloadSheet = getOrCreateProjectTab(projectId, projectName);
+
+    // 既存の記録をチェック（同日同ユーザーの場合は上書き）
+    const data = workloadSheet.getDataRange().getValues();
+    let existingRowIndex = -1;
+
+    for (let i = 1; i < data.length; i++) {
+      if (formatDate(data[i][0]) === date && data[i][1] === employeeNumber) {
+        existingRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (existingRowIndex > 0) {
+      // 既存記録を更新
+      workloadSheet
+        .getRange(existingRowIndex, 1, 1, 4)
+        .setValues([[new Date(date), employeeNumber, hours, memo]]);
+    } else {
+      // 新規記録を追加
+      workloadSheet.appendRow([new Date(date), employeeNumber, hours, memo]);
+    }
+
+    return {
+      success: true,
+      message: "工数を記録しました",
+    };
+  } catch (error) {
+    console.error("工数記録エラー:", error);
+    return {
+      success: false,
+      message: "工数の記録に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 案件のステータスを更新
+ */
+function updateProjectStatus(
+  projectId: string,
+  status: "open" | "close"
+): { success: boolean; message: string } {
+  try {
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+
+    if (!projectsSheet) {
+      return {
+        success: false,
+        message: "案件マスタが見つかりません",
+      };
+    }
+
+    const data = projectsSheet.getDataRange().getValues();
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === projectId) {
+        projectsSheet.getRange(i + 1, 4).setValue(status);
+        return {
+          success: true,
+          message: `案件のステータスを${
+            status === "open" ? "オープン" : "クローズ"
+          }に更新しました`,
+        };
+      }
+    }
+
+    return {
+      success: false,
+      message: "案件が見つかりません",
+    };
+  } catch (error) {
+    console.error("案件ステータス更新エラー:", error);
+    return {
+      success: false,
+      message: "案件ステータスの更新に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 現在のユーザー情報を取得（セッションから）
+ */
+function getCurrentUser(): { employeeNumber: string; name: string } | null {
+  try {
+    // Session.getActiveUser() を使用してユーザー情報を取得
+    const user = Session.getActiveUser();
+    if (!user) return null;
+
+    const userEmail = user.getEmail();
+    if (!userEmail) return null;
+
+    // キャッシュからユーザー情報を取得
+    const cache = CacheService.getDocumentCache();
+    if (!cache) return null;
+
+    const userDataString = cache.get(`user_${userEmail}`);
+
+    if (userDataString) {
+      return JSON.parse(userDataString);
+    }
+
+    return null;
+  } catch (error) {
+    console.error("現在ユーザー取得エラー:", error);
+    return null;
+  }
+}
+
+/**
+ * 案件の割り当てを解除
+ */
+function unassignProjectFromUser(
+  projectId: string,
+  employeeNumber: string
+): { success: boolean; message: string } {
+  try {
+    // ユーザースプレッドシートを取得
+    const userSpreadsheet = getOrCreateSpreadsheet();
+
+    // project_assignmentsシートを取得
+    const assignmentsSheet = userSpreadsheet.getSheetByName(
+      "project_assignments"
+    );
+    if (!assignmentsSheet) {
+      return {
+        success: false,
+        message: "project_assignmentsシートが見つかりません",
+      };
+    }
+
+    const data = assignmentsSheet.getDataRange().getValues();
+    let rowToDelete = -1;
+
+    // 該当する割り当てを検索
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] === projectId && data[i][0] === employeeNumber) {
+        rowToDelete = i + 1;
+        break;
+      }
+    }
+
+    if (rowToDelete === -1) {
+      return {
+        success: false,
+        message: "割り当てが見つかりません",
+      };
+    }
+
+    // 行を削除
+    assignmentsSheet.deleteRow(rowToDelete);
+
+    console.log(
+      `案件 ${projectId} の社員 ${employeeNumber} への割り当てを解除しました`
+    );
+
+    return {
+      success: true,
+      message: "案件の割り当てを解除しました",
+    };
+  } catch (error) {
+    console.error("案件割り当て解除エラー:", error);
+    return {
+      success: false,
+      message: "案件の割り当て解除に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 日付フォーマット用ヘルパー関数
+ */
+function formatDate(date: Date | string): string {
+  if (typeof date === "string") {
+    return date;
+  }
+
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * 全案件一覧を取得（割り当て状況含む）
+ */
+function getAllProjects(
+  employeeNumber: string,
+  includeClosed: boolean = false
+): { success: boolean; message: string; data?: any[] } {
+  try {
+    console.log(
+      `getAllProjects開始 - 社員番号: ${employeeNumber}, includeClosed: ${includeClosed}`
+    );
+
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    console.log("案件スプレッドシート取得成功:", spreadsheet.getName());
+
+    // projectsシートから全案件を取得
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+    if (!projectsSheet) {
+      console.log("projectsシートが見つかりません");
+      return {
+        success: true,
+        message: "案件マスタが見つかりません",
+        data: [],
+      };
+    }
+
+    const projectData = projectsSheet.getDataRange().getValues();
+    console.log("全案件データ:", projectData);
+
+    // ユーザースプレッドシートからproject_assignmentsシートの割り当て情報を取得
+    const userSpreadsheet = getOrCreateSpreadsheet();
+    const assignmentsSheet = userSpreadsheet.getSheetByName(
+      "project_assignments"
+    );
+    let assignmentData: any[][] = [];
+    if (assignmentsSheet) {
+      assignmentData = assignmentsSheet.getDataRange().getValues();
+      console.log("割り当てデータ:", assignmentData);
+    } else {
+      console.log("project_assignmentsシートが存在しません");
+    }
+
+    const projects = [];
+
+    // ヘッダー行をスキップして案件データを処理
+    for (let i = 1; i < projectData.length; i++) {
+      const [projectId, name, description, status] = projectData[i];
+
+      // クローズ案件を除外する場合のフィルタリング
+      if (!includeClosed && status === "closed") {
+        continue;
+      }
+
+      // この案件に割り当てられているユーザーを確認
+      const isAssignedToUser = assignmentData.some(
+        (row) => row[1] === projectId && row[0].toString() === employeeNumber
+      );
+
+      // 工数サマリーを取得
+      const workloadSummary = getProjectWorkloadSummary(
+        projectId,
+        name,
+        employeeNumber
+      );
+      console.log(`案件 ${projectId} の工数サマリー:`, workloadSummary);
+
+      projects.push({
+        projectId,
+        name,
+        description,
+        status,
+        isAssigned: isAssignedToUser,
+        myWorkload: workloadSummary.myWorkload,
+        totalWorkload: workloadSummary.totalWorkload,
+        workloadDetails: workloadSummary.details,
+      });
+    }
+
+    // 案件ID順でソート
+    projects.sort((a, b) => a.projectId.localeCompare(b.projectId));
+
+    console.log(`全案件一覧取得完了: ${projects.length} 件`, projects);
+
+    return {
+      success: true,
+      message: "全案件一覧を取得しました",
+      data: projects,
+    };
+  } catch (error) {
+    console.error("全案件一覧取得エラー:", error);
+    return {
+      success: false,
+      message: "全案件一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 案件スプレッドシート接続テスト用関数
+ */
+function testProjectsSpreadsheetConnection(): {
+  success: boolean;
+  message: string;
+  data?: any;
+} {
+  try {
+    console.log("=== 案件スプレッドシート接続テスト開始 ===");
+
+    // 案件スプレッドシートにアクセス
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    console.log("案件スプレッドシート名:", spreadsheet.getName());
+
+    // 全シートの一覧を取得
+    const sheets = spreadsheet.getSheets();
+    console.log("利用可能なシート数:", sheets.length);
+
+    const sheetNames = sheets.map((sheet) => sheet.getName());
+    console.log("シート名一覧:", sheetNames);
+
+    // projectsシートの確認
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+    let projectsData = null;
+    if (projectsSheet) {
+      const lastRow = projectsSheet.getLastRow();
+      console.log(`projectsシートの最終行:`, lastRow);
+
+      if (lastRow > 0) {
+        projectsData = projectsSheet
+          .getRange(1, 1, Math.min(lastRow, 5), 4)
+          .getValues();
+        console.log("projectsシートサンプルデータ:", projectsData);
+      }
+    }
+
+    // project_assignmentsシートの確認
+    const assignmentsSheet = spreadsheet.getSheetByName("project_assignments");
+    let assignmentsData = null;
+    if (assignmentsSheet) {
+      const lastRow = assignmentsSheet.getLastRow();
+      console.log(`project_assignmentsシートの最終行:`, lastRow);
+
+      if (lastRow > 0) {
+        assignmentsData = assignmentsSheet
+          .getRange(1, 1, Math.min(lastRow, 5), 2)
+          .getValues();
+        console.log(
+          "project_assignmentsシートサンプルデータ:",
+          assignmentsData
+        );
+      }
+    }
+
+    return {
+      success: true,
+      message: "案件スプレッドシート接続成功",
+      data: {
+        spreadsheetName: spreadsheet.getName(),
+        spreadsheetId: spreadsheet.getId(),
+        sheetNames,
+        projectsData,
+        assignmentsData,
+      },
+    };
+  } catch (error) {
+    console.error("案件スプレッドシート接続テストエラー:", error);
+    return {
+      success: false,
+      message: "案件スプレッドシート接続失敗: " + String(error),
     };
   }
 }

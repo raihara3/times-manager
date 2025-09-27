@@ -1,12 +1,12 @@
 <script>
   /**
-   * Times. - Single Page Application
+   * .Times - Single Page Application
    */
 
   class TimesApp {
     constructor() {
       this.currentUser = null;
-      this.currentView = 'login';
+      this.currentView = "login";
       this.init();
     }
 
@@ -54,34 +54,34 @@
      * ログインビューを表示
      */
     showLoginView() {
-      const loginView = document.getElementById('loginView');
-      const homeView = document.getElementById('homeView');
+      const loginView = document.getElementById("loginView");
+      const homeView = document.getElementById("homeView");
 
       if (loginView && homeView) {
-        loginView.style.display = 'block';
-        loginView.classList.add('active');
-        homeView.style.display = 'none';
-        homeView.classList.remove('active');
+        loginView.style.display = "block";
+        loginView.classList.add("active");
+        homeView.style.display = "none";
+        homeView.classList.remove("active");
       }
 
-      this.currentView = 'login';
+      this.currentView = "login";
     }
 
     /**
      * ホームビューを表示
      */
     showHomeView() {
-      const loginView = document.getElementById('loginView');
-      const homeView = document.getElementById('homeView');
+      const loginView = document.getElementById("loginView");
+      const homeView = document.getElementById("homeView");
 
       if (loginView && homeView) {
-        loginView.style.display = 'none';
-        loginView.classList.remove('active');
-        homeView.style.display = 'block';
-        homeView.classList.add('active');
+        loginView.style.display = "none";
+        loginView.classList.remove("active");
+        homeView.style.display = "block";
+        homeView.classList.add("active");
       }
 
-      this.currentView = 'home';
+      this.currentView = "home";
       this.updateUserDisplay();
     }
 
@@ -376,22 +376,27 @@
       // 全セクションを非表示
       const sections = document.querySelectorAll(".content-section");
       sections.forEach((section) => {
-        section.style.display = 'none';
+        section.style.display = "none";
         section.classList.remove("active");
       });
 
       // 指定セクションを表示
       let targetSection;
-      switch(sectionName) {
-        case 'dashboard':
+      switch (sectionName) {
+        case "dashboard":
           targetSection = document.getElementById("dashboardSection");
           break;
-        case 'attendance':
+        case "attendance":
           targetSection = document.getElementById("attendanceSection");
           // 出退勤セクションに移動時は勤怠データを初期化
           this.initializeAttendanceSection();
           break;
-        case 'coming-soon':
+        case "workload":
+          targetSection = document.getElementById("workloadSection");
+          // 工数管理セクションに移動時は工数データを初期化
+          this.initializeWorkloadSection();
+          break;
+        case "coming-soon":
           targetSection = document.getElementById("comingSoonSection");
           break;
         default:
@@ -399,9 +404,20 @@
       }
 
       if (targetSection) {
-        targetSection.style.display = 'block';
+        targetSection.style.display = "block";
         targetSection.classList.add("active");
       }
+    }
+
+    /**
+     * 工数管理セクションの初期化
+     */
+    initializeWorkloadSection() {
+      if (!this.workloadInitialized) {
+        this.setupWorkloadManagement();
+        this.workloadInitialized = true;
+      }
+      this.loadWorkloadData();
     }
 
     /**
@@ -425,10 +441,10 @@
      */
     setupAttendanceButtons() {
       const buttons = {
-        clockIn: document.getElementById('btnClockIn'),
-        clockOut: document.getElementById('btnClockOut'),
-        breakStart: document.getElementById('btnBreakStart'),
-        breakEnd: document.getElementById('btnBreakEnd')
+        clockIn: document.getElementById("btnClockIn"),
+        clockOut: document.getElementById("btnClockOut"),
+        breakStart: document.getElementById("btnBreakStart"),
+        breakEnd: document.getElementById("btnBreakEnd"),
       };
 
       // 各ボタンのイベントリスナーを設定
@@ -436,9 +452,11 @@
         if (button) {
           // 既存のイベントリスナーを削除
           button.replaceWith(button.cloneNode(true));
-          const newButton = document.getElementById(`btn${action.charAt(0).toUpperCase() + action.slice(1)}`);
+          const newButton = document.getElementById(
+            `btn${action.charAt(0).toUpperCase() + action.slice(1)}`
+          );
 
-          newButton.addEventListener('click', async () => {
+          newButton.addEventListener("click", async () => {
             await this.performAttendanceAction(action);
           });
         }
@@ -454,17 +472,21 @@
       this.showLoading();
 
       try {
-        const result = await this.callGASFunction('stampAction', this.currentUser.employeeNumber, action);
+        const result = await this.callGASFunction(
+          "stampAction",
+          this.currentUser.employeeNumber,
+          action
+        );
 
         if (result.success) {
           // データを再読み込み
           await this.loadAttendanceData();
         } else {
-          this.showMessage(result.message, 'error');
+          this.showMessage(result.message, "error");
         }
       } catch (error) {
-        console.error('勤怠アクションエラー:', error);
-        this.showMessage('勤怠記録に失敗しました。', 'error');
+        console.error("勤怠アクションエラー:", error);
+        this.showMessage("勤怠記録に失敗しました。", "error");
       } finally {
         this.hideLoading();
       }
@@ -481,7 +503,10 @@
         this.disableAllPunchButtons();
 
         // 現在の状態を取得
-        const statusResult = await this.callGASFunction('getCurrentStatus', this.currentUser.employeeNumber);
+        const statusResult = await this.callGASFunction(
+          "getCurrentStatus",
+          this.currentUser.employeeNumber
+        );
         this.updateStatusDisplay(statusResult.status);
         this.updateAttendanceButtons(statusResult.status);
 
@@ -491,28 +516,45 @@
         const month = now.getMonth() + 1;
 
         // 月次メトリクスを取得
-        const metrics = await this.callGASFunction('getMonthlyMetrics', this.currentUser.employeeNumber, year, month);
+        const metrics = await this.callGASFunction(
+          "getMonthlyMetrics",
+          this.currentUser.employeeNumber,
+          year,
+          month
+        );
         this.updateMetricsDisplay(metrics);
 
         // カレンダーデータも読み込み（現在表示月と同じ場合のみ）
-        if (this.currentCalendarYear === year && this.currentCalendarMonth === month) {
+        if (
+          this.currentCalendarYear === year &&
+          this.currentCalendarMonth === month
+        ) {
           // カレンダーデータのみ読み込み（メトリクスは既に読み込み済み）
           try {
-            const summary = await this.callGASFunction('getDailySummary', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+            const summary = await this.callGASFunction(
+              "getDailySummary",
+              this.currentUser.employeeNumber,
+              this.currentCalendarYear,
+              this.currentCalendarMonth
+            );
             this.renderCalendar(summary);
 
-            const records = await this.callGASFunction('getAttendanceRecords', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+            const records = await this.callGASFunction(
+              "getAttendanceRecords",
+              this.currentUser.employeeNumber,
+              this.currentCalendarYear,
+              this.currentCalendarMonth
+            );
             this.renderDetails(records);
           } catch (error) {
-            console.error('初回カレンダーデータ読み込みエラー:', error);
+            console.error("初回カレンダーデータ読み込みエラー:", error);
           }
         }
-
       } catch (error) {
-        console.error('勤怠データ読み込みエラー:', error);
-        this.showMessage('勤怠データの読み込みに失敗しました。', 'error');
+        console.error("勤怠データ読み込みエラー:", error);
+        this.showMessage("勤怠データの読み込みに失敗しました。", "error");
         // エラー時もボタンを復元（未出勤状態として扱う）
-        this.updateAttendanceButtons('未出勤');
+        this.updateAttendanceButtons("未出勤");
       }
     }
 
@@ -520,24 +562,24 @@
      * 状態表示の更新
      */
     updateStatusDisplay(status) {
-      const statusDisplay = document.getElementById('statusDisplay');
-      const statusText = document.getElementById('statusText');
+      const statusDisplay = document.getElementById("statusDisplay");
+      const statusText = document.getElementById("statusText");
 
       if (!statusDisplay || !statusText) return;
 
       const statusConfig = {
-        '未出勤': { icon: '⚪', color: '#6b7280' },
-        '出勤中': { icon: '🟢', color: '#10b981' },
-        '中抜け中': { icon: '⏸️', color: '#f59e0b' },
-        '退勤済み': { icon: '🔴', color: '#ef4444' }
+        未出勤: { icon: "⚪", color: "#6b7280" },
+        出勤中: { icon: "🟢", color: "#10b981" },
+        中抜け中: { icon: "⏸️", color: "#f59e0b" },
+        退勤済み: { icon: "🔴", color: "#ef4444" },
       };
 
-      const config = statusConfig[status] || statusConfig['未出勤'];
+      const config = statusConfig[status] || statusConfig["未出勤"];
 
       statusDisplay.style.background = `linear-gradient(135deg, ${config.color}, ${config.color}dd)`;
       statusText.textContent = `現在の状況: ${status}`;
 
-      const statusIcon = statusDisplay.querySelector('.status-icon');
+      const statusIcon = statusDisplay.querySelector(".status-icon");
       if (statusIcon) {
         statusIcon.textContent = config.icon;
       }
@@ -548,16 +590,16 @@
      */
     disableAllPunchButtons() {
       const buttons = {
-        clockIn: document.getElementById('btnClockIn'),
-        clockOut: document.getElementById('btnClockOut'),
-        breakStart: document.getElementById('btnBreakStart'),
-        breakEnd: document.getElementById('btnBreakEnd')
+        clockIn: document.getElementById("btnClockIn"),
+        clockOut: document.getElementById("btnClockOut"),
+        breakStart: document.getElementById("btnBreakStart"),
+        breakEnd: document.getElementById("btnBreakEnd"),
       };
 
-      Object.values(buttons).forEach(btn => {
+      Object.values(buttons).forEach((btn) => {
         if (btn) {
           btn.disabled = true;
-          btn.style.opacity = '0.5';
+          btn.style.opacity = "0.5";
         }
       });
     }
@@ -567,43 +609,43 @@
      */
     updateAttendanceButtons(status) {
       const buttons = {
-        clockIn: document.getElementById('btnClockIn'),
-        clockOut: document.getElementById('btnClockOut'),
-        breakStart: document.getElementById('btnBreakStart'),
-        breakEnd: document.getElementById('btnBreakEnd')
+        clockIn: document.getElementById("btnClockIn"),
+        clockOut: document.getElementById("btnClockOut"),
+        breakStart: document.getElementById("btnBreakStart"),
+        breakEnd: document.getElementById("btnBreakEnd"),
       };
 
       // 全ボタンを一旦無効化
-      Object.values(buttons).forEach(btn => {
+      Object.values(buttons).forEach((btn) => {
         if (btn) {
           btn.disabled = true;
-          btn.style.opacity = '0.5';
+          btn.style.opacity = "0.5";
         }
       });
 
       // 状態に応じて有効なボタンを設定
       switch (status) {
-        case '未出勤':
-        case '退勤済み':
+        case "未出勤":
+        case "退勤済み":
           if (buttons.clockIn) {
             buttons.clockIn.disabled = false;
-            buttons.clockIn.style.opacity = '1';
+            buttons.clockIn.style.opacity = "1";
           }
           break;
-        case '出勤中':
+        case "出勤中":
           if (buttons.clockOut) {
             buttons.clockOut.disabled = false;
-            buttons.clockOut.style.opacity = '1';
+            buttons.clockOut.style.opacity = "1";
           }
           if (buttons.breakStart) {
             buttons.breakStart.disabled = false;
-            buttons.breakStart.style.opacity = '1';
+            buttons.breakStart.style.opacity = "1";
           }
           break;
-        case '中抜け中':
+        case "中抜け中":
           if (buttons.breakEnd) {
             buttons.breakEnd.disabled = false;
-            buttons.breakEnd.style.opacity = '1';
+            buttons.breakEnd.style.opacity = "1";
           }
           break;
       }
@@ -617,17 +659,17 @@
       this.currentCalendarMonth = new Date().getMonth() + 1;
 
       // 月切り替えボタンのイベント設定
-      const prevMonthBtn = document.getElementById('prevMonthBtn');
-      const nextMonthBtn = document.getElementById('nextMonthBtn');
+      const prevMonthBtn = document.getElementById("prevMonthBtn");
+      const nextMonthBtn = document.getElementById("nextMonthBtn");
 
       if (prevMonthBtn) {
-        prevMonthBtn.addEventListener('click', () => {
+        prevMonthBtn.addEventListener("click", () => {
           this.navigateMonth(-1);
         });
       }
 
       if (nextMonthBtn) {
-        nextMonthBtn.addEventListener('click', () => {
+        nextMonthBtn.addEventListener("click", () => {
           this.navigateMonth(1);
         });
       }
@@ -658,7 +700,7 @@
      * 現在月表示の更新
      */
     updateCurrentMonthDisplay() {
-      const currentMonthElement = document.getElementById('currentMonth');
+      const currentMonthElement = document.getElementById("currentMonth");
       if (currentMonthElement) {
         currentMonthElement.textContent = `${this.currentCalendarYear}年${this.currentCalendarMonth}月`;
       }
@@ -672,23 +714,37 @@
 
       try {
         // 日次サマリーを取得
-        const summary = await this.callGASFunction('getDailySummary', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        const summary = await this.callGASFunction(
+          "getDailySummary",
+          this.currentUser.employeeNumber,
+          this.currentCalendarYear,
+          this.currentCalendarMonth
+        );
         this.renderCalendar(summary);
 
         // 打刻詳細を取得
-        const records = await this.callGASFunction('getAttendanceRecords', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        const records = await this.callGASFunction(
+          "getAttendanceRecords",
+          this.currentUser.employeeNumber,
+          this.currentCalendarYear,
+          this.currentCalendarMonth
+        );
         this.renderDetails(records);
 
         // 月次メトリクスを取得・更新
-        const metrics = await this.callGASFunction('getMonthlyMetrics', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        const metrics = await this.callGASFunction(
+          "getMonthlyMetrics",
+          this.currentUser.employeeNumber,
+          this.currentCalendarYear,
+          this.currentCalendarMonth
+        );
         this.updateMetricsDisplay(metrics);
 
         // タイトルを更新
         this.updateMetricsTitle();
-
       } catch (error) {
-        console.error('カレンダーデータ読み込みエラー:', error);
-        this.showMessage('カレンダーデータの読み込みに失敗しました。', 'error');
+        console.error("カレンダーデータ読み込みエラー:", error);
+        this.showMessage("カレンダーデータの読み込みに失敗しました。", "error");
       }
     }
 
@@ -696,7 +752,7 @@
      * カレンダーの描画
      */
     renderCalendar(summary) {
-      const container = document.getElementById('calendarContainer');
+      const container = document.getElementById("calendarContainer");
       if (!container) return;
 
       let html = `
@@ -718,18 +774,30 @@
       `;
 
       if (summary && summary.length > 0) {
-        summary.forEach(item => {
+        summary.forEach((item) => {
           html += `
             <tr>
               <td class="date-cell">${item.date}</td>
-              <td class="time-cell">${item.clockIn || '-'}</td>
-              <td class="time-cell">${item.clockOut || '-'}</td>
-              <td class="break-cell">${item.breakTime || '-'}</td>
-              <td class="work-cell">${item.workTime || '-'}</td>
-              <td class="overtime-cell">${item.overtime || '-'}</td>
-              <td>${item.halfDay ? '<span class="special-day-indicator">◯</span>' : ''}</td>
-              <td>${item.fullDay ? '<span class="special-day-indicator">◯</span>' : ''}</td>
-              <td>${item.holidayWork ? '<span class="special-day-indicator">◯</span>' : ''}</td>
+              <td class="time-cell">${item.clockIn || "-"}</td>
+              <td class="time-cell">${item.clockOut || "-"}</td>
+              <td class="break-cell">${item.breakTime || "-"}</td>
+              <td class="work-cell">${item.workTime || "-"}</td>
+              <td class="overtime-cell">${item.overtime || "-"}</td>
+              <td>${
+                item.halfDay
+                  ? '<span class="special-day-indicator">◯</span>'
+                  : ""
+              }</td>
+              <td>${
+                item.fullDay
+                  ? '<span class="special-day-indicator">◯</span>'
+                  : ""
+              }</td>
+              <td>${
+                item.holidayWork
+                  ? '<span class="special-day-indicator">◯</span>'
+                  : ""
+              }</td>
             </tr>
           `;
         });
@@ -753,7 +821,7 @@
      * 打刻詳細の描画
      */
     renderDetails(records) {
-      const container = document.getElementById('detailsContainer');
+      const container = document.getElementById("detailsContainer");
       if (!container) return;
 
       let html = `
@@ -771,11 +839,15 @@
       `;
 
       if (records && records.length > 0) {
-        records.forEach(record => {
-          let editButtons = '';
+        records.forEach((record) => {
+          let editButtons = "";
 
           // 打刻系のアクションのみ編集可能
-          if (['clockIn', 'clockOut', 'breakStart', 'breakEnd'].includes(record.action)) {
+          if (
+            ["clockIn", "clockOut", "breakStart", "breakEnd"].includes(
+              record.action
+            )
+          ) {
             editButtons = `
               <button class="btn btn-edit" onclick="window.timesApp.editAction(${record.rowNumber})">
                 タイプ編集
@@ -817,13 +889,13 @@
      */
     getActionLabel(action) {
       const labels = {
-        clockIn: '出勤',
-        clockOut: '退勤',
-        breakStart: '中抜け開始',
-        breakEnd: '中抜け終了',
-        halfDay: '半休',
-        fullDay: '全休',
-        holidayWork: '休日出勤'
+        clockIn: "出勤",
+        clockOut: "退勤",
+        breakStart: "中抜け開始",
+        breakEnd: "中抜け終了",
+        halfDay: "半休",
+        fullDay: "全休",
+        holidayWork: "休日出勤",
       };
       return labels[action] || action;
     }
@@ -832,15 +904,18 @@
      * メトリクスタイトルの更新
      */
     updateMetricsTitle() {
-      const metricsTitle = document.getElementById('metricsTitle');
+      const metricsTitle = document.getElementById("metricsTitle");
       if (metricsTitle) {
         const currentDate = new Date();
         const currentYear = currentDate.getFullYear();
         const currentMonth = currentDate.getMonth() + 1;
 
         // 現在月かどうかで表示を変える
-        if (this.currentCalendarYear === currentYear && this.currentCalendarMonth === currentMonth) {
-          metricsTitle.textContent = '📊 今月の勤怠';
+        if (
+          this.currentCalendarYear === currentYear &&
+          this.currentCalendarMonth === currentMonth
+        ) {
+          metricsTitle.textContent = "📊 今月の勤怠";
         } else {
           metricsTitle.textContent = `📊 ${this.currentCalendarMonth}月の勤怠`;
         }
@@ -851,42 +926,62 @@
      * 打刻タイプの編集
      */
     async editAction(rowNumber) {
-      const validActions = ['clockIn', 'clockOut', 'breakStart', 'breakEnd', 'halfDay', 'fullDay', 'holidayWork'];
+      const validActions = [
+        "clockIn",
+        "clockOut",
+        "breakStart",
+        "breakEnd",
+        "halfDay",
+        "fullDay",
+        "holidayWork",
+      ];
       const actionLabels = {
-        clockIn: '出勤',
-        clockOut: '退勤',
-        breakStart: '中抜け開始',
-        breakEnd: '中抜け終了',
-        halfDay: '半休',
-        fullDay: '全休',
-        holidayWork: '休日出勤'
+        clockIn: "出勤",
+        clockOut: "退勤",
+        breakStart: "中抜け開始",
+        breakEnd: "中抜け終了",
+        halfDay: "半休",
+        fullDay: "全休",
+        holidayWork: "休日出勤",
       };
 
-      const options = validActions.map(action => `${action} (${actionLabels[action]})`).join('\n');
-      const newAction = prompt(`新しい打刻タイプを入力してください:\n\n${options}`);
+      const options = validActions
+        .map((action) => `${action} (${actionLabels[action]})`)
+        .join("\n");
+      const newAction = prompt(
+        `新しい打刻タイプを入力してください:\n\n${options}`
+      );
 
       if (!newAction) return;
 
-      const actionKey = newAction.trim().split(' ')[0];
+      const actionKey = newAction.trim().split(" ")[0];
       if (!validActions.includes(actionKey)) {
-        alert('無効な打刻タイプです。');
+        alert("無効な打刻タイプです。");
         return;
       }
 
       this.showLoading();
 
       try {
-        const sheetName = `${this.currentCalendarYear}${String(this.currentCalendarMonth).padStart(2, '0')}`;
-        const result = await this.callGASFunction('updatePunchAction', sheetName, rowNumber, actionKey, '');
+        const sheetName = `${this.currentCalendarYear}${String(
+          this.currentCalendarMonth
+        ).padStart(2, "0")}`;
+        const result = await this.callGASFunction(
+          "updatePunchAction",
+          sheetName,
+          rowNumber,
+          actionKey,
+          ""
+        );
 
         if (result.success) {
           await this.loadCalendarData();
         } else {
-          this.showMessage(result.message, 'error');
+          this.showMessage(result.message, "error");
         }
       } catch (error) {
-        console.error('打刻タイプ編集エラー:', error);
-        this.showMessage('打刻タイプの編集に失敗しました。', 'error');
+        console.error("打刻タイプ編集エラー:", error);
+        this.showMessage("打刻タイプの編集に失敗しました。", "error");
       } finally {
         this.hideLoading();
       }
@@ -896,32 +991,691 @@
      * 打刻時間の編集
      */
     async editTime(rowNumber) {
-      const newTime = prompt('新しい時刻を「yyyy-MM-dd HH:mm:ss」の形式で入力してください。\n例: 2024-09-27 09:00:00');
+      const newTime = prompt(
+        "新しい時刻を「yyyy-MM-dd HH:mm:ss」の形式で入力してください。\n例: 2024-09-27 09:00:00"
+      );
 
       if (!newTime) return;
 
       // 簡単な形式チェック
       if (!/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(newTime)) {
-        alert('正しい形式で入力してください。\n例: 2024-09-27 09:00:00');
+        alert("正しい形式で入力してください。\n例: 2024-09-27 09:00:00");
         return;
       }
 
       this.showLoading();
 
       try {
-        const sheetName = `${this.currentCalendarYear}${String(this.currentCalendarMonth).padStart(2, '0')}`;
-        const result = await this.callGASFunction('updatePunchTime', sheetName, rowNumber, newTime, '');
+        const sheetName = `${this.currentCalendarYear}${String(
+          this.currentCalendarMonth
+        ).padStart(2, "0")}`;
+        const result = await this.callGASFunction(
+          "updatePunchTime",
+          sheetName,
+          rowNumber,
+          newTime,
+          ""
+        );
 
         if (result.success) {
           await this.loadCalendarData();
         } else {
-          this.showMessage(result.message, 'error');
+          this.showMessage(result.message, "error");
         }
       } catch (error) {
-        console.error('打刻時間編集エラー:', error);
-        this.showMessage('打刻時間の編集に失敗しました。', 'error');
+        console.error("打刻時間編集エラー:", error);
+        this.showMessage("打刻時間の編集に失敗しました。", "error");
       } finally {
         this.hideLoading();
+      }
+    }
+
+    /**
+     * 工数管理データの読み込み
+     */
+    async loadWorkloadData() {
+      if (!this.currentUser) {
+        console.log("loadWorkloadData: currentUserが存在しません");
+        return;
+      }
+
+      console.log("loadWorkloadData開始:", this.currentUser);
+
+      try {
+        // 担当案件一覧を取得（オープン案件のみ）
+        console.log(
+          "getUserProjects呼び出し開始:",
+          this.currentUser.employeeNumber
+        );
+        const assignedProjectsResult = await this.callGASFunction(
+          "getUserProjects",
+          this.currentUser.employeeNumber,
+          false
+        );
+        console.log("getUserProjects結果:", assignedProjectsResult);
+
+        this.renderAssignedProjectsList(assignedProjectsResult.data || []);
+
+        // 全案件一覧を取得（オープン案件のみ）
+        console.log(
+          "getAllProjects呼び出し開始:",
+          this.currentUser.employeeNumber
+        );
+        const projectsResult = await this.callGASFunction(
+          "getAllProjects",
+          this.currentUser.employeeNumber,
+          false
+        );
+        console.log("getAllProjects結果:", projectsResult);
+
+        this.renderProjectsList(projectsResult.data || []);
+
+        // クローズ案件表示ボタンの状態を更新
+        this.updateClosedProjectsButton(false);
+      } catch (error) {
+        console.error("工数データ読み込みエラー:", error);
+        this.showMessage("工数データの読み込みに失敗しました。", "error");
+      }
+    }
+
+    /**
+     * 担当案件一覧の描画
+     */
+    renderAssignedProjectsList(projects) {
+      const container = document.getElementById("assignedProjectsList");
+      if (!container) {
+        console.error(
+          "renderAssignedProjectsList: assignedProjectsListコンテナが見つかりません"
+        );
+        return;
+      }
+
+      console.log("renderAssignedProjectsList開始:", projects);
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML =
+          '<div class="loading-text">担当案件がありません。下の全案件一覧から案件を割り当ててください。</div>';
+        return;
+      }
+
+      container.innerHTML = projects
+        .map(
+          (project) => `
+        <div class="project-card assigned-project">
+          <div class="project-header">
+            <div class="project-info">
+              <div class="project-id">${project.projectId}</div>
+              <h4>${project.name}</h4>
+              <p class="project-description">${
+                project.description || "説明なし"
+              }</p>
+              <div class="assignment-status">
+                <span class="assignment-badge assigned">✅ 担当中</span>
+              </div>
+            </div>
+            <div class="project-stats">
+              <div class="stat-item">
+                <span>自分の工数:</span>
+                <span class="stat-value">${project.myWorkload.toFixed(
+                  1
+                )}h</span>
+              </div>
+              <div class="stat-item">
+                <span>総工数:</span>
+                <span class="stat-value">${project.totalWorkload.toFixed(
+                  1
+                )}h</span>
+              </div>
+              <span class="status-badge ${project.status}">${
+            project.status === "open" ? "オープン" : "クローズ"
+          }</span>
+            </div>
+          </div>
+          <div class="project-actions">
+            <div class="btn-group">
+              <button class="btn btn-primary btn-sm" onclick="window.timesApp.openWorkloadModal('${
+                project.projectId
+              }', '${project.name}')">
+                <span class="btn-icon">⏱️</span>
+                工数入力
+              </button>
+              <button class="btn btn-outline btn-sm" onclick="window.timesApp.unassignProject('${
+                project.projectId
+              }')">
+                <span class="btn-icon">➖</span>
+                割り当て解除
+              </button>
+              ${
+                project.status === "open"
+                  ? `
+                <button class="btn btn-outline btn-sm" onclick="window.timesApp.closeProject('${project.projectId}')">
+                  <span class="btn-icon">🔒</span>
+                  クローズ
+                </button>
+              `
+                  : `
+                <button class="btn btn-outline btn-sm" onclick="window.timesApp.reopenProject('${project.projectId}')">
+                  <span class="btn-icon">🔓</span>
+                  再オープン
+                </button>
+              `
+              }
+            </div>
+            <button class="accordion-toggle" onclick="window.timesApp.toggleAccordion('assigned-${
+              project.projectId
+            }')">
+              <span class="accordion-icon">📋</span>
+              工数詳細
+              <span class="accordion-arrow">▼</span>
+            </button>
+          </div>
+          <div class="accordion-content" id="accordion-assigned-${
+            project.projectId
+          }">
+            ${this.renderWorkloadDetails(project.workloadDetails)}
+          </div>
+        </div>
+      `
+        )
+        .join("");
+    }
+
+    /**
+     * 案件一覧の描画
+     */
+    renderProjectsList(projects) {
+      const container = document.getElementById("projectsList");
+      if (!container) {
+        console.error(
+          "renderProjectsList: projectsListコンテナが見つかりません"
+        );
+        return;
+      }
+
+      console.log("renderProjectsList開始:", projects);
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML =
+          '<div class="loading-text">案件がありません。新規案件を作成してください。</div>';
+        return;
+      }
+
+      container.innerHTML = projects
+        .map(
+          (project) => `
+        <div class="project-card ${
+          project.status === "closed" ? "closed" : ""
+        } ${!project.isAssigned ? "not-assigned" : ""}">
+          <div class="project-header">
+            <div class="project-info">
+              <div class="project-id">${project.projectId}</div>
+              <h4>${project.name}</h4>
+              <p class="project-description">${
+                project.description || "説明なし"
+              }</p>
+              <div class="assignment-status">
+                ${
+                  project.isAssigned
+                    ? '<span class="assignment-badge assigned">✅ 割り当て済み</span>'
+                    : '<span class="assignment-badge not-assigned">⚪ 未割り当て</span>'
+                }
+              </div>
+            </div>
+            <div class="project-stats">
+              <div class="stat-item">
+                <span>自分の工数:</span>
+                <span class="stat-value">${project.myWorkload.toFixed(
+                  1
+                )}h</span>
+              </div>
+              <div class="stat-item">
+                <span>総工数:</span>
+                <span class="stat-value">${project.totalWorkload.toFixed(
+                  1
+                )}h</span>
+              </div>
+              <span class="status-badge ${project.status}">${
+            project.status === "open" ? "オープン" : "クローズ"
+          }</span>
+            </div>
+          </div>
+          <div class="project-actions">
+            <div class="btn-group">
+              ${
+                project.isAssigned
+                  ? `
+                <button class="btn btn-primary btn-sm" onclick="window.timesApp.openWorkloadModal('${project.projectId}', '${project.name}')">
+                  <span class="btn-icon">⏱️</span>
+                  工数入力
+                </button>
+                <button class="btn btn-outline btn-sm" onclick="window.timesApp.unassignProject('${project.projectId}')">
+                  <span class="btn-icon">➖</span>
+                  割り当て解除
+                </button>
+              `
+                  : `
+                <button class="btn btn-success btn-sm" onclick="window.timesApp.assignProject('${project.projectId}')">
+                  <span class="btn-icon">➕</span>
+                  割り当て
+                </button>
+              `
+              }
+              ${
+                project.status === "open"
+                  ? `
+                <button class="btn btn-outline btn-sm" onclick="window.timesApp.closeProject('${project.projectId}')">
+                  <span class="btn-icon">🔒</span>
+                  クローズ
+                </button>
+              `
+                  : `
+                <button class="btn btn-outline btn-sm" onclick="window.timesApp.reopenProject('${project.projectId}')">
+                  <span class="btn-icon">🔓</span>
+                  再オープン
+                </button>
+              `
+              }
+            </div>
+            <button class="accordion-toggle" onclick="window.timesApp.toggleAccordion('${
+              project.projectId
+            }')">
+              <span class="accordion-icon">📋</span>
+              工数詳細
+              <span class="accordion-arrow">▼</span>
+            </button>
+          </div>
+          <div class="accordion-content" id="accordion-${project.projectId}">
+            ${this.renderWorkloadDetails(project.workloadDetails)}
+          </div>
+        </div>
+      `
+        )
+        .join("");
+    }
+
+    /**
+     * 工数詳細テーブルの描画
+     */
+    renderWorkloadDetails(details) {
+      if (!details || details.length === 0) {
+        return '<div class="loading-text">工数記録がありません</div>';
+      }
+
+      return `
+        <table class="workload-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>社員番号</th>
+              <th>工数</th>
+              <th>メモ</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${details
+              .map(
+                (detail) => `
+              <tr>
+                <td class="date-cell">${detail.date}</td>
+                <td>${detail.employeeNumber}</td>
+                <td class="hours-cell">${detail.hours}h</td>
+                <td class="memo-cell" title="${detail.memo}">${detail.memo}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    /**
+     * アコーディオンの開閉
+     */
+    toggleAccordion(projectId) {
+      const content = document.getElementById(`accordion-${projectId}`);
+      const arrow = content.parentElement.querySelector(".accordion-arrow");
+
+      if (content.classList.contains("open")) {
+        content.classList.remove("open");
+        arrow.textContent = "▼";
+      } else {
+        content.classList.add("open");
+        arrow.textContent = "▲";
+      }
+    }
+
+    /**
+     * 案件作成フォームの処理
+     */
+    async handleProjectCreation(event) {
+      event.preventDefault();
+
+      if (!this.currentUser) return;
+
+      try {
+        this.showLoading();
+
+        const formData = new FormData(event.target);
+        const name = formData.get("projectName");
+        const description = formData.get("projectDescription");
+
+        const result = await this.callGASFunction(
+          "createProject",
+          name,
+          description,
+          this.currentUser.employeeNumber
+        );
+
+        if (result.success) {
+          this.showMessage("案件を作成しました", "success");
+          event.target.reset();
+          this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件作成エラー:", error);
+        this.showMessage("案件の作成に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 工数入力モーダルを開く
+     */
+    openWorkloadModal(projectId, projectName) {
+      this.currentProject = { id: projectId, name: projectName };
+
+      // 日付をデフォルトで今日に設定
+      const today = new Date().toISOString().split("T")[0];
+      document.getElementById("workloadDate").value = today;
+
+      // モーダルタイトルを設定
+      document.getElementById(
+        "modalTitle"
+      ).textContent = `⏱️ ${projectName} - 工数入力`;
+
+      // モーダルを表示
+      document.getElementById("workloadModal").style.display = "flex";
+    }
+
+    /**
+     * 工数入力モーダルを閉じる
+     */
+    closeWorkloadModal() {
+      document.getElementById("workloadModal").style.display = "none";
+      document.getElementById("workloadForm").reset();
+      this.currentProject = null;
+    }
+
+    /**
+     * 工数記録の処理
+     */
+    async handleWorkloadSubmission(event) {
+      event.preventDefault();
+
+      if (!this.currentUser || !this.currentProject) return;
+
+      try {
+        this.showLoading();
+
+        const formData = new FormData(event.target);
+        const date = formData.get("workloadDate");
+        const hours = parseFloat(formData.get("workloadHours"));
+        const memo = formData.get("workloadMemo") || "";
+
+        const result = await this.callGASFunction(
+          "recordWorkload",
+          this.currentProject.id,
+          this.currentProject.name,
+          this.currentUser.employeeNumber,
+          date,
+          hours,
+          memo
+        );
+
+        if (result.success) {
+          // this.showMessage('工数を記録しました', 'success');
+          this.closeWorkloadModal();
+          this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("工数記録エラー:", error);
+        this.showMessage("工数の記録に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 案件をクローズ
+     */
+    async closeProject(projectId) {
+      if (!confirm("この案件をクローズしますか？")) return;
+
+      try {
+        this.showLoading();
+        const result = await this.callGASFunction(
+          "updateProjectStatus",
+          projectId,
+          "close"
+        );
+
+        if (result.success) {
+          this.showMessage("案件をクローズしました", "success");
+          this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件クローズエラー:", error);
+        this.showMessage("案件のクローズに失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 案件を再オープン
+     */
+    async reopenProject(projectId) {
+      try {
+        this.showLoading();
+        const result = await this.callGASFunction(
+          "updateProjectStatus",
+          projectId,
+          "open"
+        );
+
+        if (result.success) {
+          this.showMessage("案件を再オープンしました", "success");
+          this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件再オープンエラー:", error);
+        this.showMessage("案件の再オープンに失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * クローズ案件の表示切り替え
+     */
+    async toggleClosedProjects() {
+      if (!this.currentUser) return;
+
+      try {
+        this.showLoading();
+
+        const showClosed =
+          document.getElementById("showClosedBtn").style.display === "none";
+
+        // 担当案件一覧を更新
+        const assignedProjectsResult = await this.callGASFunction(
+          "getUserProjects",
+          this.currentUser.employeeNumber,
+          !showClosed
+        );
+        this.renderAssignedProjectsList(assignedProjectsResult.data || []);
+
+        // 全案件一覧を更新
+        const projectsResult = await this.callGASFunction(
+          "getAllProjects",
+          this.currentUser.employeeNumber,
+          !showClosed
+        );
+        this.renderProjectsList(projectsResult.data || []);
+
+        this.updateClosedProjectsButton(!showClosed);
+      } catch (error) {
+        console.error("クローズ案件表示切り替えエラー:", error);
+        this.showMessage("案件一覧の更新に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 案件を自分に割り当て
+     */
+    async assignProject(projectId) {
+      if (!this.currentUser) return;
+
+      try {
+        this.showLoading();
+        const result = await this.callGASFunction(
+          "assignProjectToUser",
+          projectId,
+          this.currentUser.employeeNumber
+        );
+
+        if (result.success) {
+          this.showMessage("案件を自分に割り当てました", "success");
+
+          // 担当案件一覧と全案件一覧を更新
+          await this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件割り当てエラー:", error);
+        this.showMessage("案件の割り当てに失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 案件の割り当てを解除
+     */
+    async unassignProject(projectId) {
+      if (!this.currentUser) return;
+
+      if (!confirm("この案件の割り当てを解除しますか？")) return;
+
+      try {
+        this.showLoading();
+        const result = await this.callGASFunction(
+          "unassignProjectFromUser",
+          projectId,
+          this.currentUser.employeeNumber
+        );
+
+        if (result.success) {
+          this.showMessage("案件の割り当てを解除しました", "success");
+
+          // 担当案件一覧と全案件一覧を更新
+          await this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件割り当て解除エラー:", error);
+        this.showMessage("案件の割り当て解除に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * クローズ案件表示ボタンの状態更新
+     */
+    updateClosedProjectsButton(showingClosed) {
+      const showBtn = document.getElementById("showClosedBtn");
+      const hideBtn = document.getElementById("hideClosedBtn");
+
+      if (showingClosed) {
+        showBtn.style.display = "none";
+        hideBtn.style.display = "inline-flex";
+      } else {
+        showBtn.style.display = "inline-flex";
+        hideBtn.style.display = "none";
+      }
+    }
+
+    /**
+     * 工数管理セクションのセットアップ
+     */
+    setupWorkloadManagement() {
+      // 案件作成フォーム
+      const projectForm = document.getElementById("projectForm");
+      if (projectForm) {
+        projectForm.addEventListener("submit", (e) =>
+          this.handleProjectCreation(e)
+        );
+      }
+
+      // 工数入力フォーム
+      const workloadForm = document.getElementById("workloadForm");
+      if (workloadForm) {
+        workloadForm.addEventListener("submit", (e) =>
+          this.handleWorkloadSubmission(e)
+        );
+      }
+
+      // モーダル制御
+      const closeModalBtn = document.getElementById("closeWorkloadModal");
+      if (closeModalBtn) {
+        closeModalBtn.addEventListener("click", () =>
+          this.closeWorkloadModal()
+        );
+      }
+
+      const cancelBtn = document.getElementById("cancelWorkloadBtn");
+      if (cancelBtn) {
+        cancelBtn.addEventListener("click", () => this.closeWorkloadModal());
+      }
+
+      // クローズ案件表示ボタン
+      const showClosedBtn = document.getElementById("showClosedBtn");
+      if (showClosedBtn) {
+        showClosedBtn.addEventListener("click", () =>
+          this.toggleClosedProjects()
+        );
+      }
+
+      const hideClosedBtn = document.getElementById("hideClosedBtn");
+      if (hideClosedBtn) {
+        hideClosedBtn.addEventListener("click", () =>
+          this.toggleClosedProjects()
+        );
+      }
+
+      // モーダル外クリックで閉じる
+      const modal = document.getElementById("workloadModal");
+      if (modal) {
+        modal.addEventListener("click", (e) => {
+          if (e.target === modal) {
+            this.closeWorkloadModal();
+          }
+        });
       }
     }
 
@@ -929,31 +1683,37 @@
      * メトリクス表示の更新
      */
     updateMetricsDisplay(metrics) {
-      const workingDaysElement = document.getElementById('workingDaysValue');
-      const surplusDeficitElement = document.getElementById('surplusDeficitValue');
-      const averageOvertimeElement = document.getElementById('averageOvertimeValue');
+      const workingDaysElement = document.getElementById("workingDaysValue");
+      const surplusDeficitElement = document.getElementById(
+        "surplusDeficitValue"
+      );
+      const averageOvertimeElement = document.getElementById(
+        "averageOvertimeValue"
+      );
 
       if (workingDaysElement) {
         workingDaysElement.textContent = `${metrics.workingDays}日`;
       }
 
       if (surplusDeficitElement) {
-        surplusDeficitElement.textContent = `${metrics.surplusDeficit >= 0 ? '+' : ''}${metrics.surplusDeficit}時間`;
-        surplusDeficitElement.className = 'metric-value';
+        surplusDeficitElement.textContent = `${
+          metrics.surplusDeficit >= 0 ? "+" : ""
+        }${metrics.surplusDeficit}時間`;
+        surplusDeficitElement.className = "metric-value";
         if (metrics.surplusDeficit < -20 || metrics.surplusDeficit >= 20) {
-          surplusDeficitElement.classList.add('danger');
+          surplusDeficitElement.classList.add("danger");
         } else if (metrics.surplusDeficit < 0 || metrics.surplusDeficit >= 10) {
-          surplusDeficitElement.classList.add('warning');
+          surplusDeficitElement.classList.add("warning");
         }
       }
 
       if (averageOvertimeElement) {
         averageOvertimeElement.textContent = `${metrics.averageOvertime}時間`;
-        averageOvertimeElement.className = 'metric-value';
+        averageOvertimeElement.className = "metric-value";
         if (metrics.averageOvertime >= 2.0) {
-          averageOvertimeElement.classList.add('danger');
+          averageOvertimeElement.classList.add("danger");
         } else if (metrics.averageOvertime >= 1.5) {
-          averageOvertimeElement.classList.add('warning');
+          averageOvertimeElement.classList.add("warning");
         }
       }
     }
@@ -995,7 +1755,7 @@
      * メッセージ表示
      */
     showMessage(message, type = "info") {
-      if (this.currentView === 'home') {
+      if (this.currentView === "home") {
         // ホームビュー用のメッセージ表示
         const messageArea = document.getElementById("messageArea");
         const messageText = document.getElementById("messageText");
