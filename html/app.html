@@ -1,299 +1,321 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Times.</title>
-  <?!= include('styles'); ?>
-</head>
-<body>
-  <div class="container">
-    <!-- ログイン画面 -->
-    <div id="loginView" class="view active">
-      <!-- ヘッダー -->
-      <header class="header">
-        <div class="header-content">
-          <h1 class="logo">⏰ Times.</h1>
-          <p class="tagline">シンプルで可愛い工数管理</p>
-        </div>
-      </header>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Times.</title>
+    <?!= include('styles'); ?>
+  </head>
+  <body>
+    <div class="container">
+      <!-- ログイン画面 -->
+      <div id="loginView" class="view active">
+        <!-- ヘッダー -->
+        <header class="header">
+          <div class="header-content">
+            <h1 class="logo">⏰ Times.</h1>
+          </div>
+        </header>
 
-      <!-- メインコンテンツ -->
-      <main class="main">
-        <div class="card login-card">
-          <!-- ログインフォーム -->
-          <div id="loginSection" class="form-section">
-            <div class="form-header">
-              <h2>🔐 ログイン</h2>
-              <p>社員番号を入力してログインしてください</p>
-            </div>
-
-            <form id="loginForm" class="form">
-              <div class="input-group">
-                <label for="employeeNumber"> 👤 社員番号 </label>
-                <input
-                  type="text"
-                  id="employeeNumber"
-                  name="employeeNumber"
-                  placeholder="例: EMP001"
-                  autocomplete="username"
-                  required
-                />
+        <!-- メインコンテンツ -->
+        <main class="main">
+          <div class="card login-card">
+            <!-- ログインフォーム -->
+            <div id="loginSection" class="form-section">
+              <div class="form-header">
+                <h2>🔐 ログイン</h2>
+                <p>社員番号を入力してログインしてください</p>
               </div>
 
-              <button type="submit" class="btn btn-primary" id="loginBtn">
-                <span class="btn-icon">🚀</span>
-                ログイン
-              </button>
-            </form>
+              <form id="loginForm" class="form">
+                <div class="input-group">
+                  <label for="employeeNumber"> 👤 社員番号 </label>
+                  <input
+                    type="text"
+                    id="employeeNumber"
+                    name="employeeNumber"
+                    placeholder="例: EMP001"
+                    autocomplete="username"
+                    required
+                  />
+                </div>
 
-            <div class="divider">
-              <span>または</span>
+                <button type="submit" class="btn btn-primary" id="loginBtn">
+                  <span class="btn-icon">🚀</span>
+                  ログイン
+                </button>
+              </form>
+
+              <div class="divider">
+                <span>または</span>
+              </div>
+
+              <button
+                type="button"
+                class="btn btn-outline"
+                id="showRegisterBtn"
+              >
+                <span class="btn-icon">✨</span>
+                新規登録
+              </button>
             </div>
 
-            <button type="button" class="btn btn-outline" id="showRegisterBtn">
-              <span class="btn-icon">✨</span>
-              新規登録
+            <!-- 登録フォーム -->
+            <div
+              id="registerSection"
+              class="form-section"
+              style="display: none"
+            >
+              <div class="form-header">
+                <h2>✨ 新規登録</h2>
+                <p>社員番号と名前を入力して登録してください</p>
+              </div>
+
+              <form id="registerForm" class="form">
+                <div class="input-group">
+                  <label for="regEmployeeNumber"> 👤 社員番号 </label>
+                  <input
+                    type="text"
+                    id="regEmployeeNumber"
+                    name="regEmployeeNumber"
+                    placeholder="例: EMP001"
+                    required
+                  />
+                </div>
+
+                <div class="input-group">
+                  <label for="regName"> 🏷️ 名前 </label>
+                  <input
+                    type="text"
+                    id="regName"
+                    name="regName"
+                    placeholder="例: 田中太郎"
+                    required
+                  />
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="registerBtn">
+                  <span class="btn-icon">🎉</span>
+                  登録する
+                </button>
+              </form>
+
+              <div class="divider">
+                <span>または</span>
+              </div>
+
+              <button type="button" class="btn btn-outline" id="showLoginBtn">
+                <span class="btn-icon">🔙</span>
+                ログインに戻る
+              </button>
+            </div>
+
+            <!-- メッセージ表示エリア -->
+            <div
+              id="messageAreaLogin"
+              class="message-area"
+              style="display: none"
+            >
+              <div id="messageContentLogin" class="message"></div>
+            </div>
+          </div>
+        </main>
+
+        <!-- フッター -->
+        <footer class="footer">
+          <p>© 2024 Times. - Made with ❤️</p>
+        </footer>
+      </div>
+
+      <!-- ホーム画面 -->
+      <div id="homeView" class="view" style="display: none">
+        <!-- ヘッダー -->
+        <header class="header">
+          <div class="header-content">
+            <h1 class="logo">⏰ Times.</h1>
+            <div class="user-info">
+              <span class="welcome-text">おかえりなさい</span>
+              <span class="user-name" id="userName">ゲスト</span>さん
+            </div>
+          </div>
+        </header>
+
+        <!-- ナビゲーション -->
+        <nav class="nav">
+          <div class="nav-content">
+            <button class="nav-btn active" data-section="dashboard">
+              <span class="nav-icon">🏠</span>
+              ダッシュボード
+            </button>
+            <button class="nav-btn" data-section="attendance">
+              <span class="nav-icon">⏱️</span>
+              出退勤
+            </button>
+            <button class="nav-btn" data-section="coming-soon">
+              <span class="nav-icon">📊</span>
+              工数管理 <span class="badge">準備中</span>
             </button>
           </div>
+        </nav>
 
-          <!-- 登録フォーム -->
-          <div id="registerSection" class="form-section" style="display: none">
-            <div class="form-header">
-              <h2>✨ 新規登録</h2>
-              <p>社員番号と名前を入力して登録してください</p>
+        <!-- メインコンテンツ -->
+        <main class="main">
+          <!-- ダッシュボードセクション -->
+          <section id="dashboardSection" class="content-section active">
+            <div class="section-header">
+              <h2>📈 ダッシュボード</h2>
+              <p>システムの概要と今後の機能をご確認いただけます</p>
             </div>
 
-            <form id="registerForm" class="form">
-              <div class="input-group">
-                <label for="regEmployeeNumber"> 👤 社員番号 </label>
-                <input
-                  type="text"
-                  id="regEmployeeNumber"
-                  name="regEmployeeNumber"
-                  placeholder="例: EMP001"
-                  required
-                />
+            <!-- システム情報カード -->
+            <div class="card info-card">
+              <div class="card-header">
+                <h3>🎉 ログイン完了！</h3>
               </div>
-
-              <div class="input-group">
-                <label for="regName"> 🏷️ 名前 </label>
-                <input
-                  type="text"
-                  id="regName"
-                  name="regName"
-                  placeholder="例: 田中太郎"
-                  required
-                />
+              <div class="card-content">
+                <p>
+                  Times.
+                  へようこそ！現在はフェーズ1（ログイン機能）が完了しています。
+                </p>
+                <div class="feature-status">
+                  <div class="feature-item completed">
+                    <span class="feature-icon">✅</span>
+                    <span class="feature-name">ユーザー登録・ログイン</span>
+                    <span class="feature-badge completed">完了</span>
+                  </div>
+                  <div class="feature-item pending">
+                    <span class="feature-icon">🔄</span>
+                    <span class="feature-name">出退勤管理</span>
+                    <span class="feature-badge pending">開発予定</span>
+                  </div>
+                  <div class="feature-item pending">
+                    <span class="feature-icon">🔄</span>
+                    <span class="feature-name">工数管理</span>
+                    <span class="feature-badge pending">開発予定</span>
+                  </div>
+                  <div class="feature-item pending">
+                    <span class="feature-icon">🔄</span>
+                    <span class="feature-name">レポート機能</span>
+                    <span class="feature-badge pending">開発予定</span>
+                  </div>
+                </div>
               </div>
-
-              <button type="submit" class="btn btn-primary" id="registerBtn">
-                <span class="btn-icon">🎉</span>
-                登録する
-              </button>
-            </form>
-
-            <div class="divider">
-              <span>または</span>
             </div>
 
-            <button type="button" class="btn btn-outline" id="showLoginBtn">
-              <span class="btn-icon">🔙</span>
-              ログインに戻る
-            </button>
-          </div>
+            <!-- クイックアクションカード -->
+            <div class="card action-card">
+              <div class="card-header">
+                <h3>⚡ クイックアクション</h3>
+              </div>
+              <div class="card-content">
+                <div class="action-grid">
+                  <button class="action-btn" id="viewSpreadsheetBtn">
+                    <span class="action-icon">📊</span>
+                    <span class="action-label">スプレッドシートを表示</span>
+                  </button>
+                  <button class="action-btn" id="logoutBtn">
+                    <span class="action-icon">🚪</span>
+                    <span class="action-label">ログアウト</span>
+                  </button>
+                  <button class="action-btn disabled">
+                    <span class="action-icon">⏱️</span>
+                    <span class="action-label">出勤打刻（準備中）</span>
+                  </button>
+                  <button class="action-btn disabled">
+                    <span class="action-icon">📋</span>
+                    <span class="action-label">工数入力（準備中）</span>
+                  </button>
+                </div>
+              </div>
+            </div>
 
-          <!-- メッセージ表示エリア -->
-          <div id="messageAreaLogin" class="message-area" style="display: none">
-            <div id="messageContentLogin" class="message"></div>
-          </div>
-        </div>
-      </main>
+            <!-- ユーザー情報カード -->
+            <div class="card user-card">
+              <div class="card-header">
+                <h3>👤 ユーザー情報</h3>
+              </div>
+              <div class="card-content">
+                <div class="user-details">
+                  <div class="user-detail-item">
+                    <span class="detail-label">社員番号:</span>
+                    <span class="detail-value" id="userEmployeeNumber">-</span>
+                  </div>
+                  <div class="user-detail-item">
+                    <span class="detail-label">登録日:</span>
+                    <span class="detail-value" id="userRegisteredAt">-</span>
+                  </div>
+                  <div class="user-detail-item">
+                    <span class="detail-label">システム状態:</span>
+                    <span class="detail-value status-ready">✅ 準備完了</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-      <!-- フッター -->
-      <footer class="footer">
-        <p>© 2024 Times. - Made with ❤️</p>
-      </footer>
+          <!-- 出退勤セクション -->
+          <section
+            id="attendanceSection"
+            class="content-section"
+            style="display: none"
+          >
+            <?!= include('attendance'); ?>
+          </section>
+
+          <!-- 準備中セクション -->
+          <section
+            id="comingSoonSection"
+            class="content-section"
+            style="display: none"
+          >
+            <div class="section-header">
+              <h2>🚧 機能開発中</h2>
+              <p>この機能は現在開発中です。しばらくお待ちください。</p>
+            </div>
+
+            <div class="card coming-soon-card">
+              <div class="card-content">
+                <div class="coming-soon-content">
+                  <div class="coming-soon-icon">🔧</div>
+                  <h3>機能開発中</h3>
+                  <p>この機能は次のフェーズで実装予定です。</p>
+                  <ul class="upcoming-features">
+                    <li>📅 出退勤の打刻機能</li>
+                    <li>⏰ 中抜け時間の管理</li>
+                    <li>📊 工数の記録と管理</li>
+                    <li>📈 レポートの自動生成</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+
+        <!-- フッター -->
+        <footer class="footer">
+          <div class="footer-content">
+            <p>© 2025 Times. - Made with ❤️</p>
+          </div>
+        </footer>
+      </div>
     </div>
 
-    <!-- ホーム画面 -->
-    <div id="homeView" class="view" style="display: none;">
-      <!-- ヘッダー -->
-      <header class="header">
-        <div class="header-content">
-          <h1 class="logo">⏰ Times.</h1>
-          <div class="user-info">
-            <span class="welcome-text">おかえりなさい</span>
-            <span class="user-name" id="userName">ゲスト</span>さん
-          </div>
-        </div>
-      </header>
-
-      <!-- ナビゲーション -->
-      <nav class="nav">
-        <div class="nav-content">
-          <button class="nav-btn active" data-section="dashboard">
-            <span class="nav-icon">🏠</span>
-            ダッシュボード
-          </button>
-          <button class="nav-btn" data-section="attendance">
-            <span class="nav-icon">⏱️</span>
-            出退勤
-          </button>
-          <button class="nav-btn" data-section="coming-soon">
-            <span class="nav-icon">📊</span>
-            工数管理 <span class="badge">準備中</span>
-          </button>
-        </div>
-      </nav>
-
-      <!-- メインコンテンツ -->
-      <main class="main">
-        <!-- ダッシュボードセクション -->
-        <section id="dashboardSection" class="content-section active">
-          <div class="section-header">
-            <h2>📈 ダッシュボード</h2>
-            <p>システムの概要と今後の機能をご確認いただけます</p>
-          </div>
-
-          <!-- システム情報カード -->
-          <div class="card info-card">
-            <div class="card-header">
-              <h3>🎉 ログイン完了！</h3>
-            </div>
-            <div class="card-content">
-              <p>Times. へようこそ！現在はフェーズ1（ログイン機能）が完了しています。</p>
-              <div class="feature-status">
-                <div class="feature-item completed">
-                  <span class="feature-icon">✅</span>
-                  <span class="feature-name">ユーザー登録・ログイン</span>
-                  <span class="feature-badge completed">完了</span>
-                </div>
-                <div class="feature-item pending">
-                  <span class="feature-icon">🔄</span>
-                  <span class="feature-name">出退勤管理</span>
-                  <span class="feature-badge pending">開発予定</span>
-                </div>
-                <div class="feature-item pending">
-                  <span class="feature-icon">🔄</span>
-                  <span class="feature-name">工数管理</span>
-                  <span class="feature-badge pending">開発予定</span>
-                </div>
-                <div class="feature-item pending">
-                  <span class="feature-icon">🔄</span>
-                  <span class="feature-name">レポート機能</span>
-                  <span class="feature-badge pending">開発予定</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- クイックアクションカード -->
-          <div class="card action-card">
-            <div class="card-header">
-              <h3>⚡ クイックアクション</h3>
-            </div>
-            <div class="card-content">
-              <div class="action-grid">
-                <button class="action-btn" id="viewSpreadsheetBtn">
-                  <span class="action-icon">📊</span>
-                  <span class="action-label">スプレッドシートを表示</span>
-                </button>
-                <button class="action-btn" id="logoutBtn">
-                  <span class="action-icon">🚪</span>
-                  <span class="action-label">ログアウト</span>
-                </button>
-                <button class="action-btn disabled">
-                  <span class="action-icon">⏱️</span>
-                  <span class="action-label">出勤打刻（準備中）</span>
-                </button>
-                <button class="action-btn disabled">
-                  <span class="action-icon">📋</span>
-                  <span class="action-label">工数入力（準備中）</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- ユーザー情報カード -->
-          <div class="card user-card">
-            <div class="card-header">
-              <h3>👤 ユーザー情報</h3>
-            </div>
-            <div class="card-content">
-              <div class="user-details">
-                <div class="user-detail-item">
-                  <span class="detail-label">社員番号:</span>
-                  <span class="detail-value" id="userEmployeeNumber">-</span>
-                </div>
-                <div class="user-detail-item">
-                  <span class="detail-label">登録日:</span>
-                  <span class="detail-value" id="userRegisteredAt">-</span>
-                </div>
-                <div class="user-detail-item">
-                  <span class="detail-label">システム状態:</span>
-                  <span class="detail-value status-ready">✅ 準備完了</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 出退勤セクション -->
-        <section id="attendanceSection" class="content-section" style="display: none;">
-          <?!= include('attendance'); ?>
-        </section>
-
-        <!-- 準備中セクション -->
-        <section id="comingSoonSection" class="content-section" style="display: none;">
-          <div class="section-header">
-            <h2>🚧 機能開発中</h2>
-            <p>この機能は現在開発中です。しばらくお待ちください。</p>
-          </div>
-
-          <div class="card coming-soon-card">
-            <div class="card-content">
-              <div class="coming-soon-content">
-                <div class="coming-soon-icon">🔧</div>
-                <h3>機能開発中</h3>
-                <p>この機能は次のフェーズで実装予定です。</p>
-                <ul class="upcoming-features">
-                  <li>📅 出退勤の打刻機能</li>
-                  <li>⏰ 中抜け時間の管理</li>
-                  <li>📊 工数の記録と管理</li>
-                  <li>📈 レポートの自動生成</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
-
-      <!-- フッター -->
-      <footer class="footer">
-        <div class="footer-content">
-          <p>© 2024 Times. - Made with ❤️ | フェーズ1: ログイン機能</p>
-        </div>
-      </footer>
+    <!-- ローディング -->
+    <div id="loading" class="loading-overlay" style="display: none">
+      <div class="loading-content">
+        <div class="spinner">⏰</div>
+        <p>処理中...</p>
+      </div>
     </div>
-  </div>
 
-  <!-- ローディング -->
-  <div id="loading" class="loading-overlay" style="display: none;">
-    <div class="loading-content">
-      <div class="spinner">⏰</div>
-      <p>処理中...</p>
+    <!-- メッセージ表示 -->
+    <div id="messageArea" class="message-overlay" style="display: none">
+      <div class="message-content">
+        <div id="messageText" class="message"></div>
+        <button id="messageCloseBtn" class="btn btn-primary">閉じる</button>
+      </div>
     </div>
-  </div>
 
-  <!-- メッセージ表示 -->
-  <div id="messageArea" class="message-overlay" style="display: none;">
-    <div class="message-content">
-      <div id="messageText" class="message"></div>
-      <button id="messageCloseBtn" class="btn btn-primary">閉じる</button>
-    </div>
-  </div>
-
-  <?!= include('app-scripts'); ?>
-</body>
+    <?!= include('app-scripts'); ?>
+  </body>
 </html>

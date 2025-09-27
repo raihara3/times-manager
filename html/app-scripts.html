@@ -388,6 +388,8 @@
           break;
         case 'attendance':
           targetSection = document.getElementById("attendanceSection");
+          // 出退勤セクションに移動時は勤怠データを初期化
+          this.initializeAttendanceSection();
           break;
         case 'coming-soon':
           targetSection = document.getElementById("comingSoonSection");
@@ -399,6 +401,204 @@
       if (targetSection) {
         targetSection.style.display = 'block';
         targetSection.classList.add("active");
+      }
+    }
+
+    /**
+     * 出退勤セクションの初期化
+     */
+    initializeAttendanceSection() {
+      if (!this.currentUser) return;
+
+      // 勤怠関連のボタンイベント設定
+      this.setupAttendanceButtons();
+
+      // 勤怠データの読み込み
+      this.loadAttendanceData();
+    }
+
+    /**
+     * 勤怠ボタンのセットアップ
+     */
+    setupAttendanceButtons() {
+      const buttons = {
+        clockIn: document.getElementById('btnClockIn'),
+        clockOut: document.getElementById('btnClockOut'),
+        breakStart: document.getElementById('btnBreakStart'),
+        breakEnd: document.getElementById('btnBreakEnd')
+      };
+
+      // 各ボタンのイベントリスナーを設定
+      Object.entries(buttons).forEach(([action, button]) => {
+        if (button) {
+          // 既存のイベントリスナーを削除
+          button.replaceWith(button.cloneNode(true));
+          const newButton = document.getElementById(`btn${action.charAt(0).toUpperCase() + action.slice(1)}`);
+
+          newButton.addEventListener('click', async () => {
+            await this.performAttendanceAction(action);
+          });
+        }
+      });
+    }
+
+    /**
+     * 勤怠アクションの実行
+     */
+    async performAttendanceAction(action) {
+      if (!this.currentUser) return;
+
+      this.showLoading();
+
+      try {
+        const result = await this.callGASFunction('stampAction', this.currentUser.employeeNumber, action);
+
+        if (result.success) {
+          this.showMessage(result.message, 'success');
+          // データを再読み込み
+          await this.loadAttendanceData();
+        } else {
+          this.showMessage(result.message, 'error');
+        }
+      } catch (error) {
+        console.error('勤怠アクションエラー:', error);
+        this.showMessage('勤怠記録に失敗しました。', 'error');
+      } finally {
+        this.hideLoading();
+      }
+    }
+
+    /**
+     * 勤怠データの読み込み
+     */
+    async loadAttendanceData() {
+      if (!this.currentUser) return;
+
+      try {
+        // 現在の状態を取得
+        const statusResult = await this.callGASFunction('getCurrentStatus', this.currentUser.employeeNumber);
+        this.updateStatusDisplay(statusResult.status);
+        this.updateAttendanceButtons(statusResult.status);
+
+        // 月次データを読み込み
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+
+        // 月次メトリクスを取得
+        const metrics = await this.callGASFunction('getMonthlyMetrics', this.currentUser.employeeNumber, year, month);
+        this.updateMetricsDisplay(metrics);
+
+      } catch (error) {
+        console.error('勤怠データ読み込みエラー:', error);
+        this.showMessage('勤怠データの読み込みに失敗しました。', 'error');
+      }
+    }
+
+    /**
+     * 状態表示の更新
+     */
+    updateStatusDisplay(status) {
+      const statusDisplay = document.getElementById('statusDisplay');
+      const statusText = document.getElementById('statusText');
+
+      if (!statusDisplay || !statusText) return;
+
+      const statusConfig = {
+        '未出勤': { icon: '⚪', color: '#6b7280' },
+        '出勤中': { icon: '🟢', color: '#10b981' },
+        '中抜け中': { icon: '⏸️', color: '#f59e0b' },
+        '退勤済み': { icon: '🔴', color: '#ef4444' }
+      };
+
+      const config = statusConfig[status] || statusConfig['未出勤'];
+
+      statusDisplay.style.background = `linear-gradient(135deg, ${config.color}, ${config.color}dd)`;
+      statusText.textContent = `現在の状況: ${status}`;
+
+      const statusIcon = statusDisplay.querySelector('.status-icon');
+      if (statusIcon) {
+        statusIcon.textContent = config.icon;
+      }
+    }
+
+    /**
+     * 勤怠ボタンの状態更新
+     */
+    updateAttendanceButtons(status) {
+      const buttons = {
+        clockIn: document.getElementById('btnClockIn'),
+        clockOut: document.getElementById('btnClockOut'),
+        breakStart: document.getElementById('btnBreakStart'),
+        breakEnd: document.getElementById('btnBreakEnd')
+      };
+
+      // 全ボタンを一旦無効化
+      Object.values(buttons).forEach(btn => {
+        if (btn) {
+          btn.disabled = true;
+          btn.style.opacity = '0.5';
+        }
+      });
+
+      // 状態に応じて有効なボタンを設定
+      switch (status) {
+        case '未出勤':
+        case '退勤済み':
+          if (buttons.clockIn) {
+            buttons.clockIn.disabled = false;
+            buttons.clockIn.style.opacity = '1';
+          }
+          break;
+        case '出勤中':
+          if (buttons.clockOut) {
+            buttons.clockOut.disabled = false;
+            buttons.clockOut.style.opacity = '1';
+          }
+          if (buttons.breakStart) {
+            buttons.breakStart.disabled = false;
+            buttons.breakStart.style.opacity = '1';
+          }
+          break;
+        case '中抜け中':
+          if (buttons.breakEnd) {
+            buttons.breakEnd.disabled = false;
+            buttons.breakEnd.style.opacity = '1';
+          }
+          break;
+      }
+    }
+
+    /**
+     * メトリクス表示の更新
+     */
+    updateMetricsDisplay(metrics) {
+      const workingDaysElement = document.getElementById('workingDaysValue');
+      const surplusDeficitElement = document.getElementById('surplusDeficitValue');
+      const averageOvertimeElement = document.getElementById('averageOvertimeValue');
+
+      if (workingDaysElement) {
+        workingDaysElement.textContent = `${metrics.workingDays}日`;
+      }
+
+      if (surplusDeficitElement) {
+        surplusDeficitElement.textContent = `${metrics.surplusDeficit >= 0 ? '+' : ''}${metrics.surplusDeficit}時間`;
+        surplusDeficitElement.className = 'metric-value';
+        if (metrics.surplusDeficit < -20 || metrics.surplusDeficit >= 20) {
+          surplusDeficitElement.classList.add('danger');
+        } else if (metrics.surplusDeficit < 0 || metrics.surplusDeficit >= 10) {
+          surplusDeficitElement.classList.add('warning');
+        }
+      }
+
+      if (averageOvertimeElement) {
+        averageOvertimeElement.textContent = `${metrics.averageOvertime}時間`;
+        averageOvertimeElement.className = 'metric-value';
+        if (metrics.averageOvertime >= 2.0) {
+          averageOvertimeElement.classList.add('danger');
+        } else if (metrics.averageOvertime >= 1.5) {
+          averageOvertimeElement.classList.add('warning');
+        }
       }
     }
 
