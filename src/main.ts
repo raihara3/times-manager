@@ -360,44 +360,128 @@ function stampAction(
 }
 
 /**
- * 現在の勤怠状態を取得
+ * 指定した年月の勤怠レコードを取得
+ */
+function getAttendanceRecords(employeeNumber: string, year: number, month: number): any[] {
+  try {
+    const sheetName = `${year}${String(month).padStart(2, "0")}`;
+    const sheet = getAttendanceSheet(sheetName);
+
+    if (!sheet) return [];
+
+    const data = sheet.getDataRange().getValues();
+    const records = [];
+
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][1] && data[i][1].toString() === employeeNumber) {
+        records.push({
+          rowNumber: i + 1,
+          date: data[i][0] ? Utilities.formatDate(new Date(data[i][0]), "Asia/Tokyo", "yyyy-MM-dd") : "",
+          employeeNumber: data[i][1].toString(),
+          action: data[i][2].toString(),
+          timestamp: data[i][3] ? Utilities.formatDate(new Date(data[i][3]), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss") : "",
+          details: data[i][4] ? data[i][4].toString() : ""
+        });
+      }
+    }
+
+    return records;
+  } catch (error) {
+    console.error("勤怠レコード取得エラー:", error);
+    return [];
+  }
+}
+
+/**
+ * オープンなレコード（未完了の出勤/中抜け）を取得
+ */
+function getOpenRecord(employeeNumber: string): any | null {
+  try {
+    let openRecord = null;
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // 現在の月のレコードを取得し、時刻順にソート
+    const records = getAttendanceRecords(employeeNumber, year, month);
+    records.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+    records.forEach(rec => {
+      if (rec.action === "clockIn" || rec.action === "breakStart") {
+        openRecord = rec;
+      } else if (rec.action === "clockOut" || rec.action === "breakEnd" ||
+                 rec.action === "holidayWork" || rec.action === "fullDay" || rec.action === "halfDay") {
+        openRecord = null;
+      }
+    });
+
+    // もしオープンなレコードが見つからなければ、前月もチェック
+    if (!openRecord) {
+      let prevMonth = month - 1;
+      let prevYear = year;
+      if (prevMonth < 1) {
+        prevMonth = 12;
+        prevYear--;
+      }
+
+      const prevRecords = getAttendanceRecords(employeeNumber, prevYear, prevMonth);
+      prevRecords.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+      prevRecords.forEach(rec => {
+        if (rec.action === "clockIn" || rec.action === "breakStart") {
+          openRecord = rec;
+        } else if (rec.action === "clockOut" || rec.action === "breakEnd") {
+          openRecord = null;
+        }
+      });
+    }
+
+    console.log(`オープンレコード検索結果 - 社員番号: ${employeeNumber}, オープンレコード:`, openRecord);
+    return openRecord;
+  } catch (error) {
+    console.error("オープンレコード取得エラー:", error);
+    return null;
+  }
+}
+
+/**
+ * 現在の勤怠状態を取得（Sample codeベース）
  */
 function getCurrentStatus(employeeNumber: string): { status: string } {
   try {
-    const sheetName = getCurrentSheetName();
-    const sheet = getOrCreateAttendanceSheet(sheetName);
+    console.log(`getCurrentStatus開始 - 社員番号: ${employeeNumber}`);
 
-    const dataRange = sheet.getDataRange();
-    const values = dataRange.getValues();
+    const openRecord = getOpenRecord(employeeNumber);
+    let status = "未出勤";
 
-    // 今日の日付
-    const today = Utilities.formatDate(new Date(), "Asia/Tokyo", "yyyy-MM-dd");
+    if (openRecord) {
+      if (openRecord.action === "clockIn") {
+        status = "出勤中";
+      } else if (openRecord.action === "breakStart") {
+        status = "中抜け中";
+      }
+    } else {
+      // オープンなレコードがなければ、もし直近のレコードがあるなら状態を判定
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = now.getMonth() + 1;
+      const records = getAttendanceRecords(employeeNumber, year, month);
 
-    // 最新の状態を検索
-    let lastAction = null;
-    for (let i = values.length - 1; i >= 1; i--) {
-      if (values[i][1].toString() === employeeNumber &&
-          values[i][0].toString().includes(today)) {
-        const action = values[i][2].toString();
-        if (["clockIn", "clockOut", "breakStart", "breakEnd"].includes(action)) {
-          lastAction = action;
-          break;
+      if (records.length > 0) {
+        const latest = records[records.length - 1];
+        console.log(`最新レコード:`, latest);
+
+        if (latest.action === "clockOut") {
+          status = "退勤済み";
+        } else if (latest.action === "breakEnd") {
+          status = "出勤中";
+        } else if (latest.action === "holidayWork" || latest.action === "fullDay" || latest.action === "halfDay") {
+          status = "出勤中";
         }
       }
     }
 
-    // 状態を判定
-    let status = "未出勤";
-    if (lastAction === "clockIn") {
-      status = "出勤中";
-    } else if (lastAction === "breakStart") {
-      status = "中抜け中";
-    } else if (lastAction === "breakEnd") {
-      status = "出勤中";
-    } else if (lastAction === "clockOut") {
-      status = "退勤済み";
-    }
-
+    console.log(`最終状態判定: status=${status}, openRecord=`, openRecord);
     return { status };
   } catch (error) {
     console.error("状態取得エラー:", error);
@@ -764,41 +848,6 @@ function getMonthlyMetrics(
 /**
  * 勤怠記録の取得
  */
-function getAttendanceRecords(
-  employeeNumber: string,
-  year: number,
-  month: number
-): any[] {
-  try {
-    const sheetName = `${year}${String(month).padStart(2, "0")}`;
-    const sheet = getOrCreateAttendanceSheet(sheetName);
-
-    if (!sheet) {
-      return [];
-    }
-
-    const dataRange = sheet.getDataRange();
-    const values = dataRange.getValues();
-
-    // 社員のデータをフィルタリングして変換
-    const records = values.slice(1)
-      .map((row, index) => ({
-        rowNumber: index + 2, // スプレッドシートの行番号（1-based、ヘッダー除く）
-        date: row[0].toString().split(" ")[0],
-        employeeNumber: row[1].toString(),
-        action: row[2].toString(),
-        timestamp: row[3].toString(),
-        details: row[4] ? row[4].toString() : ""
-      }))
-      .filter(record => record.employeeNumber === employeeNumber)
-      .reverse(); // 最新のものを上に
-
-    return records;
-  } catch (error) {
-    console.error("勤怠記録取得エラー:", error);
-    return [];
-  }
-}
 
 /**
  * 打刻時刻の修正

@@ -454,7 +454,6 @@
         const result = await this.callGASFunction('stampAction', this.currentUser.employeeNumber, action);
 
         if (result.success) {
-          this.showMessage(result.message, 'success');
           // データを再読み込み
           await this.loadAttendanceData();
         } else {
