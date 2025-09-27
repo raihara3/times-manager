@@ -413,6 +413,9 @@
       // 勤怠関連のボタンイベント設定
       this.setupAttendanceButtons();
 
+      // カレンダーと詳細のセットアップ
+      this.setupCalendarAndDetails();
+
       // 勤怠データの読み込み
       this.loadAttendanceData();
     }
@@ -487,6 +490,20 @@
         // 月次メトリクスを取得
         const metrics = await this.callGASFunction('getMonthlyMetrics', this.currentUser.employeeNumber, year, month);
         this.updateMetricsDisplay(metrics);
+
+        // カレンダーデータも読み込み（現在表示月と同じ場合のみ）
+        if (this.currentCalendarYear === year && this.currentCalendarMonth === month) {
+          // カレンダーデータのみ読み込み（メトリクスは既に読み込み済み）
+          try {
+            const summary = await this.callGASFunction('getDailySummary', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+            this.renderCalendar(summary);
+
+            const records = await this.callGASFunction('getAttendanceRecords', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+            this.renderDetails(records);
+          } catch (error) {
+            console.error('初回カレンダーデータ読み込みエラー:', error);
+          }
+        }
 
       } catch (error) {
         console.error('勤怠データ読み込みエラー:', error);
@@ -565,6 +582,230 @@
             buttons.breakEnd.style.opacity = '1';
           }
           break;
+      }
+    }
+
+    /**
+     * カレンダーと詳細のセットアップ
+     */
+    setupCalendarAndDetails() {
+      this.currentCalendarYear = new Date().getFullYear();
+      this.currentCalendarMonth = new Date().getMonth() + 1;
+
+      // 月切り替えボタンのイベント設定
+      const prevMonthBtn = document.getElementById('prevMonthBtn');
+      const nextMonthBtn = document.getElementById('nextMonthBtn');
+
+      if (prevMonthBtn) {
+        prevMonthBtn.addEventListener('click', () => {
+          this.navigateMonth(-1);
+        });
+      }
+
+      if (nextMonthBtn) {
+        nextMonthBtn.addEventListener('click', () => {
+          this.navigateMonth(1);
+        });
+      }
+
+      this.updateCurrentMonthDisplay();
+      this.updateMetricsTitle();
+    }
+
+    /**
+     * 月移動
+     */
+    navigateMonth(direction) {
+      this.currentCalendarMonth += direction;
+
+      if (this.currentCalendarMonth < 1) {
+        this.currentCalendarMonth = 12;
+        this.currentCalendarYear--;
+      } else if (this.currentCalendarMonth > 12) {
+        this.currentCalendarMonth = 1;
+        this.currentCalendarYear++;
+      }
+
+      this.updateCurrentMonthDisplay();
+      this.loadCalendarData();
+    }
+
+    /**
+     * 現在月表示の更新
+     */
+    updateCurrentMonthDisplay() {
+      const currentMonthElement = document.getElementById('currentMonth');
+      if (currentMonthElement) {
+        currentMonthElement.textContent = `${this.currentCalendarYear}年${this.currentCalendarMonth}月`;
+      }
+    }
+
+    /**
+     * カレンダーデータの読み込み
+     */
+    async loadCalendarData() {
+      if (!this.currentUser) return;
+
+      try {
+        // 日次サマリーを取得
+        const summary = await this.callGASFunction('getDailySummary', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        this.renderCalendar(summary);
+
+        // 打刻詳細を取得
+        const records = await this.callGASFunction('getAttendanceRecords', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        this.renderDetails(records);
+
+        // 月次メトリクスを取得・更新
+        const metrics = await this.callGASFunction('getMonthlyMetrics', this.currentUser.employeeNumber, this.currentCalendarYear, this.currentCalendarMonth);
+        this.updateMetricsDisplay(metrics);
+
+        // タイトルを更新
+        this.updateMetricsTitle();
+
+      } catch (error) {
+        console.error('カレンダーデータ読み込みエラー:', error);
+        this.showMessage('カレンダーデータの読み込みに失敗しました。', 'error');
+      }
+    }
+
+    /**
+     * カレンダーの描画
+     */
+    renderCalendar(summary) {
+      const container = document.getElementById('calendarContainer');
+      if (!container) return;
+
+      let html = `
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>出勤</th>
+              <th>退勤</th>
+              <th>中抜け(h)</th>
+              <th>勤務時間(h)</th>
+              <th>残業(h)</th>
+              <th>半休</th>
+              <th>全休</th>
+              <th>休日出勤</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      if (summary && summary.length > 0) {
+        summary.forEach(item => {
+          html += `
+            <tr>
+              <td class="date-cell">${item.date}</td>
+              <td class="time-cell">${item.clockIn || '-'}</td>
+              <td class="time-cell">${item.clockOut || '-'}</td>
+              <td class="break-cell">${item.breakTime || '-'}</td>
+              <td class="work-cell">${item.workTime || '-'}</td>
+              <td class="overtime-cell">${item.overtime || '-'}</td>
+              <td>${item.halfDay ? '<span class="special-day-indicator">◯</span>' : ''}</td>
+              <td>${item.fullDay ? '<span class="special-day-indicator">◯</span>' : ''}</td>
+              <td>${item.holidayWork ? '<span class="special-day-indicator">◯</span>' : ''}</td>
+            </tr>
+          `;
+        });
+      } else {
+        html += `
+          <tr>
+            <td colspan="9" class="loading-text">データがありません</td>
+          </tr>
+        `;
+      }
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * 打刻詳細の描画
+     */
+    renderDetails(records) {
+      const container = document.getElementById('detailsContainer');
+      if (!container) return;
+
+      let html = `
+        <table class="attendance-table">
+          <thead>
+            <tr>
+              <th>行番号</th>
+              <th>日付</th>
+              <th>打刻内容</th>
+              <th>時刻</th>
+              <th>詳細</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      if (records && records.length > 0) {
+        records.forEach(record => {
+          html += `
+            <tr>
+              <td>${record.rowNumber}</td>
+              <td class="date-cell">${record.date}</td>
+              <td>${this.getActionLabel(record.action)}</td>
+              <td class="time-cell">${record.timestamp}</td>
+              <td>${record.details || ''}</td>
+            </tr>
+          `;
+        });
+      } else {
+        html += `
+          <tr>
+            <td colspan="5" class="loading-text">データがありません</td>
+          </tr>
+        `;
+      }
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * アクションのラベル取得
+     */
+    getActionLabel(action) {
+      const labels = {
+        clockIn: '出勤',
+        clockOut: '退勤',
+        breakStart: '中抜け開始',
+        breakEnd: '中抜け終了',
+        halfDay: '半休',
+        fullDay: '全休',
+        holidayWork: '休日出勤'
+      };
+      return labels[action] || action;
+    }
+
+    /**
+     * メトリクスタイトルの更新
+     */
+    updateMetricsTitle() {
+      const metricsTitle = document.getElementById('metricsTitle');
+      if (metricsTitle) {
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth() + 1;
+
+        // 現在月かどうかで表示を変える
+        if (this.currentCalendarYear === currentYear && this.currentCalendarMonth === currentMonth) {
+          metricsTitle.textContent = '📊 今月の勤怠';
+        } else {
+          metricsTitle.textContent = `📊 ${this.currentCalendarMonth}月の勤怠`;
+        }
       }
     }
 

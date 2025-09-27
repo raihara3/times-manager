@@ -40,7 +40,7 @@
 <!-- 月次指標 -->
 <div class="card">
   <div class="card-header">
-    <h3>📊 今月の実績</h3>
+    <h3 id="metricsTitle">📊 今月の勤怠</h3>
   </div>
   <div class="card-content">
     <div class="metrics-grid" id="metricsGrid">
@@ -56,6 +56,41 @@
         <div class="metric-value" id="averageOvertimeValue">-</div>
         <div class="metric-label">平均残業時間</div>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- 勤怠カレンダー -->
+<div class="card">
+  <div class="card-header">
+    <h3>📅 勤怠カレンダー</h3>
+    <div class="calendar-controls">
+      <button class="btn btn-outline" id="prevMonthBtn">
+        <span class="btn-icon">◀️</span>
+        前月
+      </button>
+      <span class="current-month" id="currentMonth">-</span>
+      <button class="btn btn-outline" id="nextMonthBtn">
+        <span class="btn-icon">▶️</span>
+        次月
+      </button>
+    </div>
+  </div>
+  <div class="card-content">
+    <div class="calendar-container" id="calendarContainer">
+      <div class="loading-text">読み込み中...</div>
+    </div>
+  </div>
+</div>
+
+<!-- 打刻詳細 -->
+<div class="card">
+  <div class="card-header">
+    <h3>🕒 打刻詳細</h3>
+  </div>
+  <div class="card-content">
+    <div class="details-container" id="detailsContainer">
+      <div class="loading-text">読み込み中...</div>
     </div>
   </div>
 </div>
@@ -169,5 +204,115 @@
     font-size: 0.9rem;
     color: var(--gray-600);
     font-weight: 500;
+  }
+
+  /* カレンダーとディテールのスタイル */
+  .calendar-controls {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .current-month {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    min-width: 120px;
+    text-align: center;
+  }
+
+  .calendar-container,
+  .details-container {
+    margin-top: 1rem;
+    overflow-x: auto;
+  }
+
+  .attendance-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .attendance-table th {
+    background: var(--primary-color);
+    color: white;
+    padding: 12px 8px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .attendance-table td {
+    padding: 10px 8px;
+    text-align: center;
+    border-bottom: 1px solid var(--gray-200);
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+
+  .attendance-table tr:hover {
+    background-color: var(--gray-50);
+  }
+
+  .attendance-table .date-cell {
+    font-weight: 600;
+    color: var(--gray-700);
+  }
+
+  .attendance-table .time-cell {
+    font-family: monospace;
+    font-size: 0.85rem;
+  }
+
+  .attendance-table .break-cell {
+    color: var(--warning-color);
+  }
+
+  .attendance-table .work-cell {
+    color: var(--success-color);
+  }
+
+  .attendance-table .overtime-cell {
+    color: var(--error-color);
+  }
+
+  .special-day-indicator {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--warning-color);
+    color: white;
+    font-size: 0.7rem;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .loading-text {
+    text-align: center;
+    color: var(--gray-500);
+    padding: 2rem;
+    font-style: italic;
+  }
+
+  .btn.btn-outline {
+    background: transparent;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition-normal);
+  }
+
+  .btn.btn-outline:hover {
+    background: var(--primary-color);
+    color: white;
   }
 </style>

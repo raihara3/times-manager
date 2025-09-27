@@ -7,8 +7,11 @@
 // ユーザー管理用スプレッドシートID
 let USER_SPREADSHEET_ID: string | null = null;
 
-// 勤怠管理用スプレッドシートID（固定）
-const ATTENDANCE_SPREADSHEET_ID = "183rUzmk0c-FxnuCNX0h7cLsdo2YocR1qT89qybi5tu4";
+// 勤怠管理用スプレッドシートIDをプロパティストアから取得
+const ATTENDANCE_SPREADSHEET_ID =
+  PropertiesService.getScriptProperties().getProperty(
+    "CALENDAR_SPREADSHEET_ID"
+  ) || "";
 
 /**
  * Webアプリケーションのエントリポイント
@@ -248,7 +251,9 @@ function getAttendanceSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsheet {
   } catch (error) {
     console.error("勤怠スプレッドシートの取得に失敗:", error);
     console.error("スプレッドシートID:", ATTENDANCE_SPREADSHEET_ID);
-    throw new Error("勤怠スプレッドシートにアクセスできません: " + String(error));
+    throw new Error(
+      "勤怠スプレッドシートにアクセスできません: " + String(error)
+    );
   }
 }
 
@@ -265,7 +270,9 @@ function getCurrentSheetName(): string {
 /**
  * 勤怠シートの取得（作成はしない、既存のみ）
  */
-function getAttendanceSheet(sheetName: string): GoogleAppsScript.Spreadsheet.Sheet | null {
+function getAttendanceSheet(
+  sheetName: string
+): GoogleAppsScript.Spreadsheet.Sheet | null {
   try {
     const spreadsheet = getAttendanceSpreadsheet();
     const sheet = spreadsheet.getSheetByName(sheetName);
@@ -288,14 +295,20 @@ function getAttendanceSheet(sheetName: string): GoogleAppsScript.Spreadsheet.She
 /**
  * 勤怠シートの取得または作成
  */
-function getOrCreateAttendanceSheet(sheetName: string): GoogleAppsScript.Spreadsheet.Sheet {
+function getOrCreateAttendanceSheet(
+  sheetName: string
+): GoogleAppsScript.Spreadsheet.Sheet {
   let sheet = getAttendanceSheet(sheetName);
 
   if (!sheet) {
     const spreadsheet = getAttendanceSpreadsheet();
     sheet = spreadsheet.insertSheet(sheetName);
     // ヘッダーを設定
-    sheet.getRange(1, 1, 1, 5).setValues([["Date", "EmployeeNumber", "Action", "Timestamp", "Details"]]);
+    sheet
+      .getRange(1, 1, 1, 5)
+      .setValues([
+        ["Date", "EmployeeNumber", "Action", "Timestamp", "Details"],
+      ]);
 
     // ヘッダースタイルの設定
     const headerRange = sheet.getRange(1, 1, 1, 5);
@@ -323,18 +336,19 @@ function stampAction(
     const sheet = getOrCreateAttendanceSheet(sheetName);
 
     const now = new Date();
-    const date = specifiedDate || Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
-    const timestamp = Utilities.formatDate(now, "Asia/Tokyo", "yyyy/MM/dd HH:mm:ss");
+    const date =
+      specifiedDate || Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
+    const timestamp = Utilities.formatDate(
+      now,
+      "Asia/Tokyo",
+      "yyyy/MM/dd HH:mm:ss"
+    );
 
     // データを追加
     const lastRow = sheet.getLastRow();
-    sheet.getRange(lastRow + 1, 1, 1, 5).setValues([[
-      date,
-      employeeNumber,
-      action,
-      timestamp,
-      details
-    ]]);
+    sheet
+      .getRange(lastRow + 1, 1, 1, 5)
+      .setValues([[date, employeeNumber, action, timestamp, details]]);
 
     const actionMessages: { [key: string]: string } = {
       clockIn: "出勤を記録しました",
@@ -343,18 +357,18 @@ function stampAction(
       breakEnd: "中抜け終了を記録しました",
       halfDay: "半休を登録しました",
       fullDay: "全休を登録しました",
-      holidayWork: "休日出勤を登録しました"
+      holidayWork: "休日出勤を登録しました",
     };
 
     return {
       success: true,
-      message: actionMessages[action] || "打刻を記録しました"
+      message: actionMessages[action] || "打刻を記録しました",
     };
   } catch (error) {
     console.error("打刻エラー:", error);
     return {
       success: false,
-      message: "打刻に失敗しました: " + error
+      message: "打刻に失敗しました: " + error,
     };
   }
 }
@@ -362,7 +376,11 @@ function stampAction(
 /**
  * 指定した年月の勤怠レコードを取得
  */
-function getAttendanceRecords(employeeNumber: string, year: number, month: number): any[] {
+function getAttendanceRecords(
+  employeeNumber: string,
+  year: number,
+  month: number
+): any[] {
   try {
     const sheetName = `${year}${String(month).padStart(2, "0")}`;
     const sheet = getAttendanceSheet(sheetName);
@@ -376,11 +394,23 @@ function getAttendanceRecords(employeeNumber: string, year: number, month: numbe
       if (data[i][1] && data[i][1].toString() === employeeNumber) {
         records.push({
           rowNumber: i + 1,
-          date: data[i][0] ? Utilities.formatDate(new Date(data[i][0]), "Asia/Tokyo", "yyyy-MM-dd") : "",
+          date: data[i][0]
+            ? Utilities.formatDate(
+                new Date(data[i][0]),
+                "Asia/Tokyo",
+                "yyyy-MM-dd"
+              )
+            : "",
           employeeNumber: data[i][1].toString(),
           action: data[i][2].toString(),
-          timestamp: data[i][3] ? Utilities.formatDate(new Date(data[i][3]), "Asia/Tokyo", "yyyy-MM-dd HH:mm:ss") : "",
-          details: data[i][4] ? data[i][4].toString() : ""
+          timestamp: data[i][3]
+            ? Utilities.formatDate(
+                new Date(data[i][3]),
+                "Asia/Tokyo",
+                "yyyy-MM-dd HH:mm:ss"
+              )
+            : "",
+          details: data[i][4] ? data[i][4].toString() : "",
         });
       }
     }
@@ -404,13 +434,21 @@ function getOpenRecord(employeeNumber: string): any | null {
 
     // 現在の月のレコードを取得し、時刻順にソート
     const records = getAttendanceRecords(employeeNumber, year, month);
-    records.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    records.sort(
+      (a, b) =>
+        new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    );
 
-    records.forEach(rec => {
+    records.forEach((rec) => {
       if (rec.action === "clockIn" || rec.action === "breakStart") {
         openRecord = rec;
-      } else if (rec.action === "clockOut" || rec.action === "breakEnd" ||
-                 rec.action === "holidayWork" || rec.action === "fullDay" || rec.action === "halfDay") {
+      } else if (
+        rec.action === "clockOut" ||
+        rec.action === "breakEnd" ||
+        rec.action === "holidayWork" ||
+        rec.action === "fullDay" ||
+        rec.action === "halfDay"
+      ) {
         openRecord = null;
       }
     });
@@ -424,10 +462,17 @@ function getOpenRecord(employeeNumber: string): any | null {
         prevYear--;
       }
 
-      const prevRecords = getAttendanceRecords(employeeNumber, prevYear, prevMonth);
-      prevRecords.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const prevRecords = getAttendanceRecords(
+        employeeNumber,
+        prevYear,
+        prevMonth
+      );
+      prevRecords.sort(
+        (a, b) =>
+          new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
 
-      prevRecords.forEach(rec => {
+      prevRecords.forEach((rec) => {
         if (rec.action === "clockIn" || rec.action === "breakStart") {
           openRecord = rec;
         } else if (rec.action === "clockOut" || rec.action === "breakEnd") {
@@ -436,7 +481,10 @@ function getOpenRecord(employeeNumber: string): any | null {
       });
     }
 
-    console.log(`オープンレコード検索結果 - 社員番号: ${employeeNumber}, オープンレコード:`, openRecord);
+    console.log(
+      `オープンレコード検索結果 - 社員番号: ${employeeNumber}, オープンレコード:`,
+      openRecord
+    );
     return openRecord;
   } catch (error) {
     console.error("オープンレコード取得エラー:", error);
@@ -475,7 +523,11 @@ function getCurrentStatus(employeeNumber: string): { status: string } {
           status = "退勤済み";
         } else if (latest.action === "breakEnd") {
           status = "出勤中";
-        } else if (latest.action === "holidayWork" || latest.action === "fullDay" || latest.action === "halfDay") {
+        } else if (
+          latest.action === "holidayWork" ||
+          latest.action === "fullDay" ||
+          latest.action === "halfDay"
+        ) {
           status = "出勤中";
         }
       }
@@ -499,7 +551,9 @@ function getDailySummary(
 ): any[] {
   try {
     const sheetName = `${year}${String(month).padStart(2, "0")}`;
-    console.log(`日次サマリー取得開始 - シート: ${sheetName}, 社員番号: ${employeeNumber}`);
+    console.log(
+      `日次サマリー取得開始 - シート: ${sheetName}, 社員番号: ${employeeNumber}`
+    );
 
     const sheet = getAttendanceSheet(sheetName);
 
@@ -518,7 +572,7 @@ function getDailySummary(
     }
 
     // 社員のデータをフィルタリング
-    const employeeData = values.slice(1).filter(row => {
+    const employeeData = values.slice(1).filter((row) => {
       const rowEmployeeNumber = row[1] ? row[1].toString() : "";
       return rowEmployeeNumber === employeeNumber;
     });
@@ -561,12 +615,18 @@ function getDailySummary(
 
       // タイムスタンプの処理を改善
       if (timestampValue instanceof Date) {
-        timestamp = Utilities.formatDate(timestampValue, "Asia/Tokyo", "yyyy/MM/dd HH:mm:ss");
+        timestamp = Utilities.formatDate(
+          timestampValue,
+          "Asia/Tokyo",
+          "yyyy/MM/dd HH:mm:ss"
+        );
       } else {
         timestamp = timestampValue.toString();
       }
 
-      console.log(`日付: ${date}, アクション: ${action}, タイムスタンプ: ${timestamp}`);
+      console.log(
+        `日付: ${date}, アクション: ${action}, タイムスタンプ: ${timestamp}`
+      );
 
       if (!dailyMap.has(date)) {
         dailyMap.set(date, {
@@ -579,7 +639,7 @@ function getDailySummary(
           halfDay: false,
           fullDay: false,
           holidayWork: false,
-          breaks: [] // 中抜け記録
+          breaks: [], // 中抜け記録
         });
       }
 
@@ -610,9 +670,13 @@ function getDailySummary(
           const lastBreak = dayData.breaks.find((b: any) => b.end === null);
           if (lastBreak) {
             lastBreak.end = timestamp;
-            console.log(`${date} - 中抜け終了を設定: ${timestamp} (開始: ${lastBreak.start})`);
+            console.log(
+              `${date} - 中抜け終了を設定: ${timestamp} (開始: ${lastBreak.start})`
+            );
           } else {
-            console.log(`${date} - 警告: 対応する中抜け開始が見つかりません (終了: ${timestamp})`);
+            console.log(
+              `${date} - 警告: 対応する中抜け開始が見つかりません (終了: ${timestamp})`
+            );
           }
           break;
         case "halfDay":
@@ -632,8 +696,12 @@ function getDailySummary(
       if (dayData.clockIn && dayData.clockOut) {
         try {
           // 時刻文字列を解析
-          const inTimeStr = dayData.clockIn.includes(":") ? dayData.clockIn : "00:00:00";
-          const outTimeStr = dayData.clockOut.includes(":") ? dayData.clockOut : "00:00:00";
+          const inTimeStr = dayData.clockIn.includes(":")
+            ? dayData.clockIn
+            : "00:00:00";
+          const outTimeStr = dayData.clockOut.includes(":")
+            ? dayData.clockOut
+            : "00:00:00";
 
           const inTime = new Date(`2000/01/01 ${inTimeStr}`);
           const outTime = new Date(`2000/01/01 ${outTimeStr}`);
@@ -643,7 +711,8 @@ function getDailySummary(
             outTime.setDate(outTime.getDate() + 1);
           }
 
-          let workHours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+          let workHours =
+            (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
 
           // 中抜け時間を計算
           let breakHours = 0;
@@ -665,8 +734,15 @@ function getDailySummary(
                 }
 
                 // HH:mm:ss 形式でない場合はスキップ
-                if (!breakStartStr.includes(":") || !breakEndStr.includes(":")) {
-                  console.log(`${date} - 中抜け${index + 1}: 時刻形式が不正 (${breakStartStr} - ${breakEndStr})`);
+                if (
+                  !breakStartStr.includes(":") ||
+                  !breakEndStr.includes(":")
+                ) {
+                  console.log(
+                    `${date} - 中抜け${
+                      index + 1
+                    }: 時刻形式が不正 (${breakStartStr} - ${breakEndStr})`
+                  );
                   return;
                 }
 
@@ -674,7 +750,11 @@ function getDailySummary(
                 const breakEnd = new Date(`2000/01/01 ${breakEndStr}`);
 
                 if (isNaN(breakStart.getTime()) || isNaN(breakEnd.getTime())) {
-                  console.log(`${date} - 中抜け${index + 1}: 日付解析エラー (${breakStartStr} - ${breakEndStr})`);
+                  console.log(
+                    `${date} - 中抜け${
+                      index + 1
+                    }: 日付解析エラー (${breakStartStr} - ${breakEndStr})`
+                  );
                   return;
                 }
 
@@ -683,15 +763,30 @@ function getDailySummary(
                   breakEnd.setDate(breakEnd.getDate() + 1);
                 }
 
-                const periodHours = (breakEnd.getTime() - breakStart.getTime()) / (1000 * 60 * 60);
+                const periodHours =
+                  (breakEnd.getTime() - breakStart.getTime()) /
+                  (1000 * 60 * 60);
                 breakHours += periodHours;
 
-                console.log(`${date} - 中抜け${index + 1}: ${breakStartStr} - ${breakEndStr} = ${periodHours.toFixed(2)}h`);
+                console.log(
+                  `${date} - 中抜け${
+                    index + 1
+                  }: ${breakStartStr} - ${breakEndStr} = ${periodHours.toFixed(
+                    2
+                  )}h`
+                );
               } catch (e) {
-                console.error(`${date} - 中抜け${index + 1} 計算エラー:`, e, breakPeriod);
+                console.error(
+                  `${date} - 中抜け${index + 1} 計算エラー:`,
+                  e,
+                  breakPeriod
+                );
               }
             } else {
-              console.log(`${date} - 中抜け${index + 1}: 開始または終了時刻が未設定`, breakPeriod);
+              console.log(
+                `${date} - 中抜け${index + 1}: 開始または終了時刻が未設定`,
+                breakPeriod
+              );
             }
           });
 
@@ -717,7 +812,17 @@ function getDailySummary(
 
           const effectiveWorkHours = actualWorkHours + extraCredit;
 
-          console.log(`${date} - 総勤務時間: ${workHours.toFixed(2)}h, 中抜け: ${breakHours.toFixed(2)}h, 昼休憩減算後: ${actualWorkHours.toFixed(2)}h, 追加クレジット: ${extraCredit}h, 実効勤務時間: ${effectiveWorkHours.toFixed(2)}h`);
+          console.log(
+            `${date} - 総勤務時間: ${workHours.toFixed(
+              2
+            )}h, 中抜け: ${breakHours.toFixed(
+              2
+            )}h, 昼休憩減算後: ${actualWorkHours.toFixed(
+              2
+            )}h, 追加クレジット: ${extraCredit}h, 実効勤務時間: ${effectiveWorkHours.toFixed(
+              2
+            )}h`
+          );
 
           // 結果を保存
           dayData.breakTime = breakHours.toFixed(1);
@@ -737,7 +842,9 @@ function getDailySummary(
 
           dayData.overtime = overtimeHours.toFixed(1);
 
-          console.log(`${date} - 最終結果: 実労働時間=${dayData.workTime}h, 中抜け=${dayData.breakTime}h, 残業=${dayData.overtime}h`);
+          console.log(
+            `${date} - 最終結果: 実労働時間=${dayData.workTime}h, 中抜け=${dayData.breakTime}h, 残業=${dayData.overtime}h`
+          );
         } catch (e) {
           console.error(`${date} の時間計算エラー:`, e);
         }
@@ -762,7 +869,9 @@ function getMonthlyMetrics(
   month: number
 ): { workingDays: number; surplusDeficit: number; averageOvertime: number } {
   try {
-    console.log(`月次メトリクス計算開始 - ${year}年${month}月, 社員番号: ${employeeNumber}`);
+    console.log(
+      `月次メトリクス計算開始 - ${year}年${month}月, 社員番号: ${employeeNumber}`
+    );
 
     const summary = getDailySummary(employeeNumber, year, month);
     console.log(`日次サマリー取得完了: ${summary.length} 日分`);
@@ -772,15 +881,16 @@ function getMonthlyMetrics(
       return {
         workingDays: 0,
         surplusDeficit: 0,
-        averageOvertime: 0
+        averageOvertime: 0,
       };
     }
 
     // サンプルコードに合わせた出勤日の計算
     // 休日出勤は出勤日数にカウントしない
-    const workingDays = summary.filter(day => {
+    const workingDays = summary.filter((day) => {
       // 何らかの勤務記録があり、かつ休日出勤でない日をカウント
-      const hasWork = (day.clockIn && day.clockIn !== "") || day.fullDay || day.halfDay;
+      const hasWork =
+        (day.clockIn && day.clockIn !== "") || day.fullDay || day.halfDay;
       return hasWork && !day.holidayWork;
     }).length;
 
@@ -791,7 +901,7 @@ function getMonthlyMetrics(
     let manualTotalWorkHours = 0;
     let manualTotalBreakHours = 0;
 
-    summary.forEach(day => {
+    summary.forEach((day) => {
       const workTime = parseFloat(day.workTime || 0);
       const breakTime = parseFloat(day.breakTime || 0);
 
@@ -799,17 +909,23 @@ function getMonthlyMetrics(
       manualTotalBreakHours += breakTime;
 
       if (workTime > 0 || breakTime > 0) {
-        console.log(`${day.date}: 実労働時間=${workTime}h, 中抜け=${breakTime}h, 出勤=${day.clockIn}, 退勤=${day.clockOut}`);
+        console.log(
+          `${day.date}: 実労働時間=${workTime}h, 中抜け=${breakTime}h, 出勤=${day.clockIn}, 退勤=${day.clockOut}`
+        );
       }
     });
 
-    console.log(`手動計算 - 総実労働時間: ${manualTotalWorkHours.toFixed(2)}h, 総中抜け時間: ${manualTotalBreakHours.toFixed(2)}h`);
+    console.log(
+      `手動計算 - 総実労働時間: ${manualTotalWorkHours.toFixed(
+        2
+      )}h, 総中抜け時間: ${manualTotalBreakHours.toFixed(2)}h`
+    );
 
     // サンプルコードロジックに合わせた計算
     let totalWorkHours = 0;
     let totalOvertime = 0;
 
-    summary.forEach(day => {
+    summary.forEach((day) => {
       totalWorkHours += parseFloat(day.workTime || 0);
       totalOvertime += parseFloat(day.overtime || 0);
     });
@@ -818,19 +934,25 @@ function getMonthlyMetrics(
     console.log(`総残業時間: ${totalOvertime.toFixed(2)}h`);
 
     // サンプルコードの過不足計算: totalWorkHours - workingDays * 8
-    const surplusDeficit = totalWorkHours - (workingDays * 8);
+    const surplusDeficit = totalWorkHours - workingDays * 8;
 
-    console.log(`標準勤務時間: ${workingDays * 8}h, 過不足: ${surplusDeficit.toFixed(2)}h`);
+    console.log(
+      `標準勤務時間: ${workingDays * 8}h, 過不足: ${surplusDeficit.toFixed(2)}h`
+    );
 
     // サンプルコードの平均残業時間: totalOvertime / workingDays
     const averageOvertime = workingDays > 0 ? totalOvertime / workingDays : 0;
 
-    console.log(`平均残業時間: ${averageOvertime.toFixed(2)}h (出勤日数: ${workingDays}日)`);
+    console.log(
+      `平均残業時間: ${averageOvertime.toFixed(
+        2
+      )}h (出勤日数: ${workingDays}日)`
+    );
 
     const result = {
       workingDays,
       surplusDeficit: Math.round(surplusDeficit * 10) / 10,
-      averageOvertime: Math.round(averageOvertime * 10) / 10
+      averageOvertime: Math.round(averageOvertime * 10) / 10,
     };
 
     console.log("月次メトリクス計算完了:", result);
@@ -840,7 +962,7 @@ function getMonthlyMetrics(
     return {
       workingDays: 0,
       surplusDeficit: 0,
-      averageOvertime: 0
+      averageOvertime: 0,
     };
   }
 }
@@ -873,13 +995,13 @@ function updatePunchTime(
 
     return {
       success: true,
-      message: "時刻を修正しました"
+      message: "時刻を修正しました",
     };
   } catch (error) {
     console.error("時刻修正エラー:", error);
     return {
       success: false,
-      message: "時刻の修正に失敗しました: " + error
+      message: "時刻の修正に失敗しました: " + error,
     };
   }
 }
@@ -908,13 +1030,13 @@ function updatePunchAction(
 
     return {
       success: true,
-      message: "打刻種類を修正しました"
+      message: "打刻種類を修正しました",
     };
   } catch (error) {
     console.error("アクション修正エラー:", error);
     return {
       success: false,
-      message: "打刻種類の修正に失敗しました: " + error
+      message: "打刻種類の修正に失敗しました: " + error,
     };
   }
 }
@@ -922,9 +1044,15 @@ function updatePunchAction(
 /**
  * 計算検証用のデバッグ関数
  */
-function debugCalculations(employeeNumber: string, year: number, month: number): { success: boolean; message: string; data?: any } {
+function debugCalculations(
+  employeeNumber: string,
+  year: number,
+  month: number
+): { success: boolean; message: string; data?: any } {
   try {
-    console.log(`=== 計算デバッグ開始 - ${year}年${month}月 社員${employeeNumber} ===`);
+    console.log(
+      `=== 計算デバッグ開始 - ${year}年${month}月 社員${employeeNumber} ===`
+    );
 
     const summary = getDailySummary(employeeNumber, year, month);
     const metrics = getMonthlyMetrics(employeeNumber, year, month);
@@ -934,7 +1062,7 @@ function debugCalculations(employeeNumber: string, year: number, month: number):
     let manualBreakHours = 0;
     let manualOvertime = 0;
 
-    const detailedDays = summary.map(day => {
+    const detailedDays = summary.map((day) => {
       const workTime = parseFloat(day.workTime || 0);
       const breakTime = parseFloat(day.breakTime || 0);
       const overtime = parseFloat(day.overtime || 0);
@@ -950,17 +1078,18 @@ function debugCalculations(employeeNumber: string, year: number, month: number):
         workTime,
         breakTime,
         overtime,
-        rawBreaks: day.breaks || []
+        rawBreaks: day.breaks || [],
       };
     });
 
-    const workingDays = summary.filter(day =>
-      day.clockIn || day.fullDay || day.halfDay || day.holidayWork
+    const workingDays = summary.filter(
+      (day) => day.clockIn || day.fullDay || day.halfDay || day.holidayWork
     ).length;
 
     const standardHours = workingDays * 8;
     const manualSurplusDeficit = manualWorkHours - standardHours;
-    const manualAverageOvertime = workingDays > 0 ? manualOvertime / workingDays : 0;
+    const manualAverageOvertime =
+      workingDays > 0 ? manualOvertime / workingDays : 0;
 
     console.log("=== 手動計算結果 ===");
     console.log(`出勤日数: ${workingDays}`);
@@ -985,16 +1114,16 @@ function debugCalculations(employeeNumber: string, year: number, month: number):
           totalWorkHours: manualWorkHours,
           totalBreakHours: manualBreakHours,
           surplusDeficit: manualSurplusDeficit,
-          averageOvertime: manualAverageOvertime
+          averageOvertime: manualAverageOvertime,
         },
-        system: metrics
-      }
+        system: metrics,
+      },
     };
   } catch (error) {
     console.error("計算デバッグエラー:", error);
     return {
       success: false,
-      message: "計算デバッグ失敗: " + String(error)
+      message: "計算デバッグ失敗: " + String(error),
     };
   }
 }
@@ -1002,7 +1131,11 @@ function debugCalculations(employeeNumber: string, year: number, month: number):
 /**
  * スプレッドシート接続テスト用関数
  */
-function testSpreadsheetConnection(): { success: boolean; message: string; data?: any } {
+function testSpreadsheetConnection(): {
+  success: boolean;
+  message: string;
+  data?: any;
+} {
   try {
     console.log("=== スプレッドシート接続テスト開始 ===");
 
@@ -1014,7 +1147,7 @@ function testSpreadsheetConnection(): { success: boolean; message: string; data?
     const sheets = spreadsheet.getSheets();
     console.log("利用可能なシート数:", sheets.length);
 
-    const sheetNames = sheets.map(sheet => sheet.getName());
+    const sheetNames = sheets.map((sheet) => sheet.getName());
     console.log("シート名一覧:", sheetNames);
 
     // 現在の年月シートを確認
@@ -1028,7 +1161,9 @@ function testSpreadsheetConnection(): { success: boolean; message: string; data?
 
       if (lastRow > 1) {
         // サンプルデータを取得
-        const sampleData = currentSheet.getRange(1, 1, Math.min(lastRow, 5), 5).getValues();
+        const sampleData = currentSheet
+          .getRange(1, 1, Math.min(lastRow, 5), 5)
+          .getValues();
         console.log("サンプルデータ:", sampleData);
 
         return {
@@ -1039,8 +1174,8 @@ function testSpreadsheetConnection(): { success: boolean; message: string; data?
             sheetNames,
             currentSheetName,
             lastRow,
-            sampleData
-          }
+            sampleData,
+          },
         };
       } else {
         return {
@@ -1050,8 +1185,8 @@ function testSpreadsheetConnection(): { success: boolean; message: string; data?
             spreadsheetName: spreadsheet.getName(),
             sheetNames,
             currentSheetName,
-            lastRow: 0
-          }
+            lastRow: 0,
+          },
         };
       }
     } else {
@@ -1062,15 +1197,15 @@ function testSpreadsheetConnection(): { success: boolean; message: string; data?
           spreadsheetName: spreadsheet.getName(),
           sheetNames,
           currentSheetName,
-          sheetExists: false
-        }
+          sheetExists: false,
+        },
       };
     }
   } catch (error) {
     console.error("スプレッドシート接続テストエラー:", error);
     return {
       success: false,
-      message: "スプレッドシート接続失敗: " + String(error)
+      message: "スプレッドシート接続失敗: " + String(error),
     };
   }
 }
