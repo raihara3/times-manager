@@ -37,6 +37,39 @@
   </div>
 </div>
 
+<!-- 特別打刻 -->
+<div class="card">
+  <div class="card-header">
+    <h3>📋 特別打刻</h3>
+    <p>全休・半休・休日出勤の日付指定打刻</p>
+  </div>
+  <div class="card-content">
+    <div class="special-punch-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label for="specialPunchDate">日付</label>
+          <input type="date" id="specialPunchDate" class="form-control" />
+        </div>
+        <div class="form-group">
+          <label for="specialPunchType">種別</label>
+          <select id="specialPunchType" class="form-control">
+            <option value="">-- 選択してください --</option>
+            <option value="fullDay">全休 (8時間加算)</option>
+            <option value="halfDay">半休 (4時間加算)</option>
+            <option value="holidayWork">休日出勤 (勤務時間全て残業)</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button class="btn btn-primary" id="btnSpecialPunch" disabled>
+          <span class="btn-icon">📝</span>
+          特別打刻を記録
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- 月次指標 -->
 <div class="card">
   <div class="card-header">
@@ -336,5 +369,88 @@
 
   .edit-cell {
     white-space: nowrap;
+  }
+
+  /* 特別打刻フォームのスタイル */
+  .special-punch-form {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    border: 2px solid var(--gray-200);
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 0.9rem;
+  }
+
+  .form-control {
+    padding: 0.75rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    transition: var(--transition-normal);
+    background: white;
+  }
+
+  .form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  .form-actions {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .btn.btn-primary {
+    background: linear-gradient(135deg, var(--primary-color), #1d4ed8);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: var(--radius-md);
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition-normal);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .btn-icon {
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 768px) {
+    .form-row {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

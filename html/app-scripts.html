@@ -505,13 +505,9 @@
         ) {
           // 今月の更新がない場合
           emoji = "";
-        } else if (overtime < 20) {
-          emoji = "🌱";
-        } else if (overtime < 30) {
-          emoji = "🌳";
-        } else if (overtime < 40) {
+        } else if (overtime >= 30) {
           emoji = "🔥";
-        } else {
+        } else if (overtime >= 45) {
           emoji = "💀";
         }
 
@@ -576,12 +572,19 @@
           console.log(`${result.data.length}件のホットな案件を取得`);
           this.renderHotProjects(result.data);
         } else {
-          console.error("ホットな案件取得失敗:", result.message || "不明なエラー");
-          this.renderHotProjectsError(result.message || "ホットな案件を取得できませんでした。");
+          console.error(
+            "ホットな案件取得失敗:",
+            result.message || "不明なエラー"
+          );
+          this.renderHotProjectsError(
+            result.message || "ホットな案件を取得できませんでした。"
+          );
         }
       } catch (error) {
         console.error("ホットな案件読み込みエラー:", error);
-        this.renderHotProjectsError("ホットな案件の読み込みに失敗しました: " + String(error));
+        this.renderHotProjectsError(
+          "ホットな案件の読み込みに失敗しました: " + String(error)
+        );
       }
     }
 
@@ -593,7 +596,8 @@
       if (!container) return;
 
       if (!projects || projects.length === 0) {
-        container.innerHTML = '<div class="loading-text">現在ホットな案件はありません。</div>';
+        container.innerHTML =
+          '<div class="loading-text">現在ホットな案件はありません。</div>';
         return;
       }
 
@@ -670,6 +674,9 @@
         breakEnd: document.getElementById("btnBreakEnd"),
       };
 
+      // 特別打刻フォームのセットアップ
+      this.setupSpecialPunchForm();
+
       // 各ボタンのイベントリスナーを設定
       Object.entries(buttons).forEach(([action, button]) => {
         if (button) {
@@ -684,6 +691,106 @@
           });
         }
       });
+    }
+
+    /**
+     * 特別打刻フォームのセットアップ
+     */
+    setupSpecialPunchForm() {
+      const dateInput = document.getElementById("specialPunchDate");
+      const typeSelect = document.getElementById("specialPunchType");
+      const submitButton = document.getElementById("btnSpecialPunch");
+
+      // 日付とタイプが両方入力されている場合のみボタンを有効化
+      const validateForm = () => {
+        const hasDate = dateInput && dateInput.value;
+        const hasType = typeSelect && typeSelect.value;
+
+        if (submitButton) {
+          submitButton.disabled = !(hasDate && hasType);
+        }
+      };
+
+      // イベントリスナーを設定
+      if (dateInput) {
+        dateInput.addEventListener("change", validateForm);
+      }
+
+      if (typeSelect) {
+        typeSelect.addEventListener("change", validateForm);
+      }
+
+      if (submitButton) {
+        submitButton.addEventListener("click", async () => {
+          await this.performSpecialPunch();
+        });
+      }
+
+      // 初期状態での検証
+      validateForm();
+    }
+
+    /**
+     * 特別打刻の実行
+     */
+    async performSpecialPunch() {
+      if (!this.currentUser) return;
+
+      const dateInput = document.getElementById("specialPunchDate");
+      const typeSelect = document.getElementById("specialPunchType");
+
+      if (!dateInput || !typeSelect) return;
+
+      const selectedDate = dateInput.value;
+      const selectedType = typeSelect.value;
+
+      if (!selectedDate || !selectedType) {
+        this.showMessage("日付と種別を選択してください。", "error");
+        return;
+      }
+
+      // 確認ダイアログ
+      const typeLabels = {
+        fullDay: "全休（8時間加算）",
+        halfDay: "半休（4時間加算）",
+        holidayWork: "休日出勤（勤務時間全て残業）"
+      };
+
+      const typeLabel = typeLabels[selectedType] || selectedType;
+      const confirmMessage = `${selectedDate} に ${typeLabel} を記録しますか？`;
+
+      if (!confirm(confirmMessage)) return;
+
+      this.showLoading();
+
+      try {
+        const result = await this.callGASFunction(
+          "stampAction",
+          this.currentUser.employeeNumber,
+          selectedType,
+          "",
+          selectedDate
+        );
+
+        if (result.success) {
+          this.showMessage(result.message, "success");
+
+          // フォームをクリア
+          dateInput.value = "";
+          typeSelect.value = "";
+          document.getElementById("btnSpecialPunch").disabled = true;
+
+          // 勤怠データを再読み込み
+          await this.loadAttendanceData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("特別打刻エラー:", error);
+        this.showMessage("特別打刻に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
     }
 
     /**
@@ -795,6 +902,9 @@
         出勤中: { icon: "🟢", color: "#10b981" },
         中抜け中: { icon: "⏸️", color: "#f59e0b" },
         退勤済み: { icon: "🔴", color: "#ef4444" },
+        全休: { icon: "📝", color: "#8b5cf6" },
+        半休: { icon: "📄", color: "#06b6d4" },
+        休日出勤: { icon: "💼", color: "#f97316" },
       };
 
       const config = statusConfig[status] || statusConfig["未出勤"];
@@ -869,6 +979,15 @@
           if (buttons.breakEnd) {
             buttons.breakEnd.disabled = false;
             buttons.breakEnd.style.opacity = "1";
+          }
+          break;
+        case "全休":
+        case "半休":
+        case "休日出勤":
+          // 特別打刻の場合は新しい出勤のみ許可（翌日の開始等）
+          if (buttons.clockIn) {
+            buttons.clockIn.disabled = false;
+            buttons.clockIn.style.opacity = "1";
           }
           break;
       }

@@ -642,18 +642,26 @@ function getCurrentStatus(employeeNumber: string): { status: string } {
 
       if (records.length > 0) {
         const latest = records[records.length - 1];
+        const today = new Date().toISOString().split('T')[0];
         console.log(`最新レコード:`, latest);
+        console.log(`今日の日付: ${today}, 最新レコードの日付: ${latest.date}`);
 
-        if (latest.action === "clockOut") {
-          status = "退勤済み";
-        } else if (latest.action === "breakEnd") {
-          status = "出勤中";
-        } else if (
-          latest.action === "holidayWork" ||
-          latest.action === "fullDay" ||
-          latest.action === "halfDay"
-        ) {
-          status = "出勤中";
+        // 今日のレコードのみを考慮
+        if (latest.date === today) {
+          if (latest.action === "clockOut") {
+            status = "退勤済み";
+          } else if (latest.action === "breakEnd") {
+            status = "出勤中";
+          } else if (latest.action === "fullDay") {
+            status = "全休";
+          } else if (latest.action === "halfDay") {
+            status = "半休";
+          } else if (latest.action === "holidayWork") {
+            status = "休日出勤";
+          }
+        } else {
+          // 今日のレコードがない場合は未出勤
+          status = "未出勤";
         }
       }
     }
@@ -818,112 +826,120 @@ function getDailySummary(
 
     // 勤務時間の計算
     dailyMap.forEach((dayData, date) => {
-      if (dayData.clockIn && dayData.clockOut) {
+      // 出退勤がある場合、または全休・半休・休日出勤がある場合に計算
+      const hasAttendance = dayData.clockIn && dayData.clockOut;
+      const hasSpecialStatus = dayData.fullDay || dayData.halfDay || dayData.holidayWork;
+
+      if (hasAttendance || hasSpecialStatus) {
         try {
-          // 時刻文字列を解析
-          const inTimeStr = dayData.clockIn.includes(":")
-            ? dayData.clockIn
-            : "00:00:00";
-          const outTimeStr = dayData.clockOut.includes(":")
-            ? dayData.clockOut
-            : "00:00:00";
-
-          const inTime = new Date(`2000/01/01 ${inTimeStr}`);
-          const outTime = new Date(`2000/01/01 ${outTimeStr}`);
-
-          // 日をまたいだ場合の処理
-          if (outTime < inTime) {
-            outTime.setDate(outTime.getDate() + 1);
-          }
-
-          let workHours =
-            (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
-
-          // 中抜け時間を計算
+          let workHours = 0;
           let breakHours = 0;
-          console.log(`${date} - 中抜け記録数: ${dayData.breaks.length}`);
 
-          dayData.breaks.forEach((breakPeriod: any, index: number) => {
-            if (breakPeriod.start && breakPeriod.end) {
-              try {
-                // タイムスタンプから時刻部分を抽出
-                let breakStartStr = breakPeriod.start;
-                let breakEndStr = breakPeriod.end;
+          // 出退勤がある場合は通常の勤務時間を計算
+          if (hasAttendance) {
+            // 時刻文字列を解析
+            const inTimeStr = dayData.clockIn.includes(":")
+              ? dayData.clockIn
+              : "00:00:00";
+            const outTimeStr = dayData.clockOut.includes(":")
+              ? dayData.clockOut
+              : "00:00:00";
 
-                // "yyyy/MM/dd HH:mm:ss" 形式の場合、時刻部分のみ抽出
-                if (breakStartStr.includes(" ")) {
-                  breakStartStr = breakStartStr.split(" ")[1];
-                }
-                if (breakEndStr.includes(" ")) {
-                  breakEndStr = breakEndStr.split(" ")[1];
-                }
+            const inTime = new Date(`2000/01/01 ${inTimeStr}`);
+            const outTime = new Date(`2000/01/01 ${outTimeStr}`);
 
-                // HH:mm:ss 形式でない場合はスキップ
-                if (
-                  !breakStartStr.includes(":") ||
-                  !breakEndStr.includes(":")
-                ) {
+            // 日をまたいだ場合の処理
+            if (outTime < inTime) {
+              outTime.setDate(outTime.getDate() + 1);
+            }
+
+            workHours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+
+            // 中抜け時間を計算
+            console.log(`${date} - 中抜け記録数: ${dayData.breaks.length}`);
+
+            dayData.breaks.forEach((breakPeriod: any, index: number) => {
+              if (breakPeriod.start && breakPeriod.end) {
+                try {
+                  // タイムスタンプから時刻部分を抽出
+                  let breakStartStr = breakPeriod.start;
+                  let breakEndStr = breakPeriod.end;
+
+                  // "yyyy/MM/dd HH:mm:ss" 形式の場合、時刻部分のみ抽出
+                  if (breakStartStr.includes(" ")) {
+                    breakStartStr = breakStartStr.split(" ")[1];
+                  }
+                  if (breakEndStr.includes(" ")) {
+                    breakEndStr = breakEndStr.split(" ")[1];
+                  }
+
+                  // HH:mm:ss 形式でない場合はスキップ
+                  if (
+                    !breakStartStr.includes(":") ||
+                    !breakEndStr.includes(":")
+                  ) {
+                    console.log(
+                      `${date} - 中抜け${
+                        index + 1
+                      }: 時刻形式が不正 (${breakStartStr} - ${breakEndStr})`
+                    );
+                    return;
+                  }
+
+                  const breakStart = new Date(`2000/01/01 ${breakStartStr}`);
+                  const breakEnd = new Date(`2000/01/01 ${breakEndStr}`);
+
+                  if (isNaN(breakStart.getTime()) || isNaN(breakEnd.getTime())) {
+                    console.log(
+                      `${date} - 中抜け${
+                        index + 1
+                      }: 日付解析エラー (${breakStartStr} - ${breakEndStr})`
+                    );
+                    return;
+                  }
+
+                  // 日をまたいだ場合の処理
+                  if (breakEnd < breakStart) {
+                    breakEnd.setDate(breakEnd.getDate() + 1);
+                  }
+
+                  const periodHours =
+                    (breakEnd.getTime() - breakStart.getTime()) /
+                    (1000 * 60 * 60);
+                  breakHours += periodHours;
+
                   console.log(
                     `${date} - 中抜け${
                       index + 1
-                    }: 時刻形式が不正 (${breakStartStr} - ${breakEndStr})`
+                    }: ${breakStartStr} - ${breakEndStr} = ${periodHours.toFixed(
+                      2
+                    )}h`
                   );
-                  return;
-                }
-
-                const breakStart = new Date(`2000/01/01 ${breakStartStr}`);
-                const breakEnd = new Date(`2000/01/01 ${breakEndStr}`);
-
-                if (isNaN(breakStart.getTime()) || isNaN(breakEnd.getTime())) {
-                  console.log(
-                    `${date} - 中抜け${
-                      index + 1
-                    }: 日付解析エラー (${breakStartStr} - ${breakEndStr})`
+                } catch (e) {
+                  console.error(
+                    `${date} - 中抜け${index + 1} 計算エラー:`,
+                    e,
+                    breakPeriod
                   );
-                  return;
                 }
-
-                // 日をまたいだ場合の処理
-                if (breakEnd < breakStart) {
-                  breakEnd.setDate(breakEnd.getDate() + 1);
-                }
-
-                const periodHours =
-                  (breakEnd.getTime() - breakStart.getTime()) /
-                  (1000 * 60 * 60);
-                breakHours += periodHours;
-
+              } else {
                 console.log(
-                  `${date} - 中抜け${
-                    index + 1
-                  }: ${breakStartStr} - ${breakEndStr} = ${periodHours.toFixed(
-                    2
-                  )}h`
-                );
-              } catch (e) {
-                console.error(
-                  `${date} - 中抜け${index + 1} 計算エラー:`,
-                  e,
+                  `${date} - 中抜け${index + 1}: 開始または終了時刻が未設定`,
                   breakPeriod
                 );
               }
-            } else {
-              console.log(
-                `${date} - 中抜け${index + 1}: 開始または終了時刻が未設定`,
-                breakPeriod
-              );
-            }
-          });
+            });
 
-          console.log(`${date} - 総中抜け時間: ${breakHours.toFixed(2)}h`);
+            console.log(`${date} - 総中抜け時間: ${breakHours.toFixed(2)}h`);
+          }
 
           // サンプルコードに合わせた勤務時間計算
           // 基本：(出勤時刻 - 退勤時刻) - 中抜け時間 - 1時間（昼休憩）
           // 休日出勤/全休/半休の場合は昼休憩を引かない
           let actualWorkHours = workHours - breakHours;
 
-          // 昼休憩（1時間）を基本的に差し引く
-          if (!dayData.holidayWork && !dayData.fullDay && !dayData.halfDay) {
+          // 昼休憩（1時間）を基本的に差し引く（特別打刻の場合は除く）
+          if (!dayData.holidayWork && !dayData.fullDay && !dayData.halfDay && hasAttendance) {
             actualWorkHours -= 1; // 1時間の昼休憩を自動減算
           }
 
@@ -961,7 +977,7 @@ function getDailySummary(
             // 休日出勤の場合：全勤務時間が残業
             overtimeHours = effectiveWorkHours;
           } else {
-            // 平日：8時間超過分が残業
+            // 平日（全休含む）：8時間超過分が残業
             overtimeHours = effectiveWorkHours > 8 ? effectiveWorkHours - 8 : 0;
           }
 
@@ -1011,12 +1027,11 @@ function getMonthlyMetrics(
     }
 
     // サンプルコードに合わせた出勤日の計算
-    // 休日出勤は出勤日数にカウントしない
+    // 休日出勤と全休は出勤日数にカウントしない
     const workingDays = summary.filter((day) => {
-      // 何らかの勤務記録があり、かつ休日出勤でない日をカウント
-      const hasWork =
-        (day.clockIn && day.clockIn !== "") || day.fullDay || day.halfDay;
-      return hasWork && !day.holidayWork;
+      // 実際の勤務記録があり、かつ休日出勤・全休でない日をカウント
+      const hasActualWork = (day.clockIn && day.clockIn !== "") || day.halfDay;
+      return hasActualWork && !day.holidayWork && !day.fullDay;
     }).length;
 
     console.log(`出勤日数: ${workingDays}`);
@@ -1051,11 +1066,22 @@ function getMonthlyMetrics(
     let totalOvertime = 0;
 
     summary.forEach((day) => {
-      totalWorkHours += parseFloat(day.workTime || 0);
-      totalOvertime += parseFloat(day.overtime || 0);
+      const workTime = parseFloat(day.workTime || 0);
+      const overtime = parseFloat(day.overtime || 0);
+
+      // 全休の場合：基本8時間は過不足計算に含めない、実際の打刻分のみ加算
+      if (day.fullDay) {
+        // 全休の実打刻時間のみ（8時間を超える分）を過不足に反映
+        const actualPunchHours = workTime - 8; // 全休加算分を除く
+        totalWorkHours += actualPunchHours > 0 ? actualPunchHours : 0;
+      } else {
+        totalWorkHours += workTime;
+      }
+
+      totalOvertime += overtime;
     });
 
-    console.log(`総勤務時間: ${totalWorkHours.toFixed(2)}h`);
+    console.log(`過不足計算用勤務時間: ${totalWorkHours.toFixed(2)}h`);
     console.log(`総残業時間: ${totalOvertime.toFixed(2)}h`);
 
     // サンプルコードの過不足計算: totalWorkHours - workingDays * 8
