@@ -143,9 +143,9 @@
         <!-- ナビゲーション -->
         <nav class="nav">
           <div class="nav-content">
-            <button class="nav-btn active" data-section="dashboard">
+            <button class="nav-btn active" data-section="home">
               <span class="nav-icon">🏠</span>
-              ダッシュボード
+              ホーム
             </button>
             <button class="nav-btn" data-section="attendance">
               <span class="nav-icon">⏱️</span>
@@ -160,100 +160,22 @@
 
         <!-- メインコンテンツ -->
         <main class="main">
-          <!-- ダッシュボードセクション -->
-          <section id="dashboardSection" class="content-section active">
+          <!-- ホームセクション -->
+          <section id="homeSection" class="content-section active">
             <div class="section-header">
-              <h2>📈 ダッシュボード</h2>
-              <p>システムの概要と今後の機能をご確認いただけます</p>
+              <h2>👥 メンバー一覧</h2>
+              <p>登録されているメンバーの一覧です</p>
             </div>
 
-            <!-- システム情報カード -->
-            <div class="card info-card">
+            <!-- メンバー一覧カード -->
+            <div class="card members-card">
               <div class="card-header">
-                <h3>🎉 ログイン完了！</h3>
+                <h3>📋 メンバーリスト</h3>
               </div>
               <div class="card-content">
-                <p>
-                  .Times
-                  へようこそ！フェーズ3（工数管理機能）まで完了しています。
-                </p>
-                <div class="feature-status">
-                  <div class="feature-item completed">
-                    <span class="feature-icon">✅</span>
-                    <span class="feature-name">ユーザー登録・ログイン</span>
-                    <span class="feature-badge completed">完了</span>
-                  </div>
-                  <div class="feature-item completed">
-                    <span class="feature-icon">✅</span>
-                    <span class="feature-name">出退勤管理</span>
-                    <span class="feature-badge completed">完了</span>
-                  </div>
-                  <div class="feature-item completed">
-                    <span class="feature-icon">✅</span>
-                    <span class="feature-name">工数管理</span>
-                    <span class="feature-badge completed">完了</span>
-                  </div>
-                  <div class="feature-item pending">
-                    <span class="feature-icon">🔄</span>
-                    <span class="feature-name">レポート機能</span>
-                    <span class="feature-badge pending">開発予定</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- クイックアクションカード -->
-            <div class="card action-card">
-              <div class="card-header">
-                <h3>⚡ クイックアクション</h3>
-              </div>
-              <div class="card-content">
-                <div class="action-grid">
-                  <button class="action-btn" id="viewSpreadsheetBtn">
-                    <span class="action-icon">📊</span>
-                    <span class="action-label">スプレッドシートを表示</span>
-                  </button>
-                  <button class="action-btn" id="logoutBtn">
-                    <span class="action-icon">🚪</span>
-                    <span class="action-label">ログアウト</span>
-                  </button>
-                  <button
-                    class="action-btn"
-                    onclick="window.timesApp.switchSection('attendance')"
-                  >
-                    <span class="action-icon">⏱️</span>
-                    <span class="action-label">出退勤管理</span>
-                  </button>
-                  <button
-                    class="action-btn"
-                    onclick="window.timesApp.switchSection('workload')"
-                  >
-                    <span class="action-icon">📊</span>
-                    <span class="action-label">工数管理</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <!-- ユーザー情報カード -->
-            <div class="card user-card">
-              <div class="card-header">
-                <h3>👤 ユーザー情報</h3>
-              </div>
-              <div class="card-content">
-                <div class="user-details">
-                  <div class="user-detail-item">
-                    <span class="detail-label">社員番号:</span>
-                    <span class="detail-value" id="userEmployeeNumber">-</span>
-                  </div>
-                  <div class="user-detail-item">
-                    <span class="detail-label">登録日:</span>
-                    <span class="detail-value" id="userRegisteredAt">-</span>
-                  </div>
-                  <div class="user-detail-item">
-                    <span class="detail-label">システム状態:</span>
-                    <span class="detail-value status-ready">✅ 準備完了</span>
-                  </div>
+                <p>残業レベル：🌱 → 🌳 → 🔥 → ☠️</p>
+                <div id="membersContainer">
+                  <div class="loading-text">メンバー情報を読み込み中...</div>
                 </div>
               </div>
             </div>
@@ -276,13 +198,12 @@
           >
             <?!= include('workload'); ?>
           </section>
-
         </main>
 
         <!-- フッター -->
         <footer class="footer">
           <div class="footer-content">
-            <p>© 2025 .Times - Made with ❤️</p>
+            <p>© 2025 .Times️</p>
           </div>
         </footer>
       </div>

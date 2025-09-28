@@ -595,7 +595,6 @@
     color: var(--success-color) !important;
   }
 
-
   /* フッター */
   .footer {
     margin-top: auto;
@@ -730,6 +729,63 @@
 
   .card {
     animation: fadeIn 0.5s ease-out;
+  }
+
+  /* メンバー一覧テーブル */
+  .members-table {
+    width: 100%;
+    border-collapse: collapse;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .members-table th,
+  .members-table td {
+    padding: 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--gray-200);
+  }
+
+  .members-table thead th {
+    background: var(--gray-50);
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .members-table tbody tr {
+    transition: var(--transition-fast);
+  }
+
+  .members-table tbody tr:hover {
+    background: var(--gray-50);
+  }
+
+  .employee-number-cell {
+    font-family: "Monaco", "Consolas", monospace;
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+
+  .name-cell {
+    font-weight: 500;
+    color: var(--gray-800);
+  }
+
+  /* ローディングとエラーテキスト */
+  .loading-text {
+    text-align: center;
+    padding: 2rem;
+    color: var(--gray-500);
+    font-style: italic;
+  }
+
+  .error-text {
+    color: var(--error-color);
   }
 
   /* プリント用スタイル */

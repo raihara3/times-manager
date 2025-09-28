@@ -86,6 +86,91 @@ interface User {
 }
 
 /**
+ * 全ユーザー情報を取得
+ * @returns ユーザー一覧
+ */
+function getAllUsers(): {
+  success: boolean;
+  message: string;
+  data?: Array<{
+    employeeNumber: string;
+    name: string;
+  }>;
+} {
+  try {
+    console.log("getAllUsers開始");
+
+    const spreadsheet = getOrCreateSpreadsheet();
+    if (!spreadsheet) {
+      console.error("スプレッドシートの取得に失敗しました");
+      return {
+        success: false,
+        message: "スプレッドシートにアクセスできません。",
+      };
+    }
+
+    const sheet = spreadsheet.getSheetByName("users");
+    if (!sheet) {
+      console.log("ユーザーシートが見つかりません");
+      return {
+        success: false,
+        message: "ユーザーシートが見つかりません。",
+      };
+    }
+
+    const dataRange = sheet.getDataRange();
+    if (!dataRange) {
+      console.error("データ範囲の取得に失敗しました");
+      return {
+        success: false,
+        message: "データ範囲を取得できません。",
+      };
+    }
+
+    const values = dataRange.getValues();
+    if (!values || values.length <= 1) {
+      console.log("ユーザーデータが存在しません");
+      return {
+        success: true,
+        message: "登録されているユーザーがいません",
+        data: [],
+      };
+    }
+
+    const users: Array<{
+      employeeNumber: string;
+      name: string;
+      overtime: string;
+      updated_at: string;
+    }> = [];
+
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      users.push({
+        employeeNumber: row[0] ? row[0].toString() : "",
+        name: row[1] ? row[1].toString() : "",
+        overtime: row[3] ? row[3].toString() : "0",
+        updated_at: row[4] ? row[4].toString() : "",
+      });
+    }
+
+    console.log(`${users.length}件のユーザーを取得`);
+
+    return {
+      success: true,
+      message: "ユーザー一覧を取得しました",
+      data: users,
+    };
+  } catch (error) {
+    console.error("ユーザー一覧取得エラー:", error);
+    return {
+      success: false,
+      message: "ユーザー一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
  * ユーザー登録
  * @param employeeNumber 社員番号
  * @param name 名前

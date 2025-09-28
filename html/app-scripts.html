@@ -86,6 +86,8 @@
 
       this.currentView = "home";
       this.updateUserDisplay();
+      // ホームビュー表示時にメンバー一覧を初期化
+      this.initializeMembersSection();
     }
 
     /**
@@ -386,8 +388,10 @@
       // 指定セクションを表示
       let targetSection;
       switch (sectionName) {
-        case "dashboard":
-          targetSection = document.getElementById("dashboardSection");
+        case "home":
+          targetSection = document.getElementById("homeSection");
+          // ホームセクションに移動時はメンバー一覧を初期化
+          this.initializeMembersSection();
           break;
         case "attendance":
           targetSection = document.getElementById("attendanceSection");
@@ -400,12 +404,139 @@
           this.initializeWorkloadSection();
           break;
         default:
-          targetSection = document.getElementById("dashboardSection");
+          targetSection = document.getElementById("homeSection");
+          this.initializeMembersSection();
       }
 
       if (targetSection) {
         targetSection.style.display = "block";
         targetSection.classList.add("active");
+      }
+    }
+
+    /**
+     * メンバー一覧セクションの初期化
+     */
+    initializeMembersSection() {
+      if (!this.membersInitialized) {
+        this.loadMembersList();
+        this.membersInitialized = true;
+      } else {
+        this.loadMembersList();
+      }
+    }
+
+    /**
+     * メンバー一覧の読み込み
+     */
+    async loadMembersList() {
+      try {
+        console.log("メンバー一覧読み込み開始");
+
+        // USER_SPREADSHEET_IDのusersタブからメンバー情報を取得
+        const result = await this.callGASFunction("getAllUsers");
+
+        console.log("getAllUsers結果:", result);
+
+        // null/undefinedチェック
+        if (!result) {
+          console.error("getAllUsers関数がnullまたはundefinedを返しました");
+          this.renderMembersError("サーバーからの応答がありません。");
+          return;
+        }
+
+        if (result.success && result.data) {
+          console.log(`${result.data.length}件のメンバーを取得`);
+          this.renderMembersList(result.data);
+        } else {
+          console.error(
+            "メンバー情報取得失敗:",
+            result.message || "不明なエラー"
+          );
+          this.renderMembersError(
+            result.message || "メンバー情報を取得できませんでした。"
+          );
+        }
+      } catch (error) {
+        console.error("メンバー一覧読み込みエラー:", error);
+        this.renderMembersError(
+          "メンバー情報の読み込みに失敗しました: " + String(error)
+        );
+      }
+    }
+
+    /**
+     * メンバー一覧の描画
+     */
+    renderMembersList(members) {
+      const container = document.getElementById("membersContainer");
+      if (!container) return;
+
+      if (!members || members.length === 0) {
+        container.innerHTML =
+          '<div class="loading-text">登録されているメンバーがいません。</div>';
+        return;
+      }
+
+      let html = `
+        <table class="members-table">
+          <thead>
+            <tr>
+              <th>社員番号</th>
+              <th>名前</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      members.forEach((member) => {
+        let emoji = "";
+
+        const overtime = Number(member.overtime) || 0;
+        if (
+          !(
+            new Date(member.updated_at).getMonth() === new Date().getMonth() &&
+            new Date(member.updated_at).getFullYear() ===
+              new Date().getFullYear()
+          )
+        ) {
+          // 今月の更新がない場合
+          emoji = "";
+        } else if (overtime < 20) {
+          emoji = "🌱";
+        } else if (overtime < 30) {
+          emoji = "🌳";
+        } else if (overtime < 40) {
+          emoji = "🔥";
+        } else {
+          emoji = "💀";
+        }
+
+        html += `
+          <tr>
+            <td class="employee-number-cell">${
+              member.employeeNumber || "-"
+            }</td>
+            <td class="name-cell">${member.name || "-"} ${emoji}</td>
+          </tr>
+        `;
+      });
+
+      html += `
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * メンバー一覧のエラー表示
+     */
+    renderMembersError(message) {
+      const container = document.getElementById("membersContainer");
+      if (container) {
+        container.innerHTML = `<div class="loading-text error-text">${message}</div>`;
       }
     }
 
@@ -1193,7 +1324,11 @@
                 <span class="btn-icon">➖</span>
                 割り当て解除
               </button>
-              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${project.projectId}', '${window.timesApp.escapeForJS(project.name)}', '${window.timesApp.escapeForJS(project.description || '')}')">
+              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${
+                project.projectId
+              }', '${window.timesApp.escapeForJS(
+            project.name
+          )}', '${window.timesApp.escapeForJS(project.description || "")}')">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1224,7 +1359,11 @@
           <div class="accordion-content" id="accordion-assigned-${
             project.projectId
           }">
-            ${this.renderWorkloadDetails(project.workloadDetails, project.projectId, project.name)}
+            ${this.renderWorkloadDetails(
+              project.workloadDetails,
+              project.projectId,
+              project.name
+            )}
           </div>
         </div>
       `
@@ -1314,7 +1453,11 @@
                 </button>
               `
               }
-              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${project.projectId}', '${window.timesApp.escapeForJS(project.name)}', '${window.timesApp.escapeForJS(project.description || '')}')">
+              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${
+                project.projectId
+              }', '${window.timesApp.escapeForJS(
+            project.name
+          )}', '${window.timesApp.escapeForJS(project.description || "")}')">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1343,7 +1486,11 @@
             </button>
           </div>
           <div class="accordion-content" id="accordion-${project.projectId}">
-            ${this.renderWorkloadDetails(project.workloadDetails, project.projectId, project.name)}
+            ${this.renderWorkloadDetails(
+              project.workloadDetails,
+              project.projectId,
+              project.name
+            )}
           </div>
         </div>
       `
@@ -1374,13 +1521,19 @@
             ${details
               .map(
                 (detail) => `
-              <tr data-workload-id="${detail.id}" data-project-id="${detail.projectId}">
+              <tr data-workload-id="${detail.id}" data-project-id="${
+                  detail.projectId
+                }">
                 <td class="date-cell">${detail.date}</td>
                 <td>${detail.employeeName || detail.employeeNumber}</td>
                 <td class="hours-cell">${detail.hours}h</td>
                 <td class="memo-cell" title="${detail.memo}">${detail.memo}</td>
                 <td class="action-cell">
-                  <button class="btn btn-sm btn-edit" onclick="window.timesApp.editWorkload('${detail.id}', '${projectId}', '${projectName}', '${detail.date}', ${detail.hours}, '${(detail.memo || '').replace(/'/g, "\\'")}')">
+                  <button class="btn btn-sm btn-edit" onclick="window.timesApp.editWorkload('${
+                    detail.id
+                  }', '${projectId}', '${projectName}', '${detail.date}', ${
+                  detail.hours
+                }, '${(detail.memo || "").replace(/'/g, "\\'")}')">
                     <span class="btn-icon">✏️</span>
                     編集
                   </button>
@@ -1489,7 +1642,7 @@
       this.editingWorkload = {
         id: workloadId,
         projectId: projectId,
-        projectName: projectName
+        projectName: projectName,
       };
 
       // フォームに既存データを入力
@@ -1510,14 +1663,14 @@
      * JavaScript文字列として安全にエスケープ
      */
     escapeForJS(str) {
-      if (!str) return '';
+      if (!str) return "";
       return str
-        .replace(/\\/g, '\\\\')
+        .replace(/\\/g, "\\\\")
         .replace(/'/g, "\\'")
         .replace(/"/g, '\\"')
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '\\r')
-        .replace(/\t/g, '\\t');
+        .replace(/\n/g, "\\n")
+        .replace(/\r/g, "\\r")
+        .replace(/\t/g, "\\t");
     }
 
     /**
@@ -1528,12 +1681,13 @@
       this.editingProject = {
         id: projectId,
         name: projectName,
-        description: projectDescription
+        description: projectDescription,
       };
 
       // フォームに既存データを入力
       document.getElementById("editProjectName").value = projectName;
-      document.getElementById("editProjectDescription").value = projectDescription || "";
+      document.getElementById("editProjectDescription").value =
+        projectDescription || "";
 
       // モーダルを表示
       document.getElementById("projectEditModal").style.display = "flex";
@@ -1571,7 +1725,7 @@
         );
 
         if (result.success) {
-          this.showMessage('案件情報を更新しました', 'success');
+          this.showMessage("案件情報を更新しました", "success");
           this.closeProjectEditModal();
           // 案件一覧を再読み込み
           this.loadWorkloadData();
@@ -1613,7 +1767,7 @@
           result = await this.callGASFunction(
             "recordWorkload",
             this.editingWorkload.projectId,
-            this.editingWorkload.projectName || '',
+            this.editingWorkload.projectName || "",
             this.currentUser.employeeNumber,
             date,
             hours,
@@ -1633,7 +1787,10 @@
         }
 
         if (result.success) {
-          this.showMessage(isEditMode ? '工数を更新しました' : '工数を記録しました', 'success');
+          this.showMessage(
+            isEditMode ? "工数を更新しました" : "工数を記録しました",
+            "success"
+          );
           this.closeWorkloadModal();
           this.loadWorkloadData();
         } else {
@@ -1641,7 +1798,12 @@
         }
       } catch (error) {
         console.error("工数処理エラー:", error);
-        this.showMessage(isEditMode ? "工数の更新に失敗しました。" : "工数の記録に失敗しました。", "error");
+        this.showMessage(
+          isEditMode
+            ? "工数の更新に失敗しました。"
+            : "工数の記録に失敗しました。",
+          "error"
+        );
       } finally {
         this.hideLoading();
       }
@@ -1756,7 +1918,9 @@
         );
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
-        this.updateAssignedClosedProjectsButton(this.showClosedAssignedProjects);
+        this.updateAssignedClosedProjectsButton(
+          this.showClosedAssignedProjects
+        );
       } catch (error) {
         console.error("担当案件クローズ表示切り替えエラー:", error);
         this.showMessage("担当案件一覧の更新に失敗しました。", "error");
@@ -1939,14 +2103,22 @@
       }
 
       // 案件編集モーダル制御
-      const closeProjectEditModalBtn = document.getElementById("closeProjectEditModal");
+      const closeProjectEditModalBtn = document.getElementById(
+        "closeProjectEditModal"
+      );
       if (closeProjectEditModalBtn) {
-        closeProjectEditModalBtn.addEventListener("click", () => this.closeProjectEditModal());
+        closeProjectEditModalBtn.addEventListener("click", () =>
+          this.closeProjectEditModal()
+        );
       }
 
-      const cancelProjectEditBtn = document.getElementById("cancelProjectEditBtn");
+      const cancelProjectEditBtn = document.getElementById(
+        "cancelProjectEditBtn"
+      );
       if (cancelProjectEditBtn) {
-        cancelProjectEditBtn.addEventListener("click", () => this.closeProjectEditModal());
+        cancelProjectEditBtn.addEventListener("click", () =>
+          this.closeProjectEditModal()
+        );
       }
 
       // 全案件読み込みボタン
