@@ -7,6 +7,9 @@
     constructor() {
       this.currentUser = null;
       this.currentView = "login";
+      // クローズ案件表示状態の独立管理
+      this.showClosedAssignedProjects = false; // 担当案件一覧のクローズ表示状態
+      this.showClosedAllProjects = false; // 全案件一覧のクローズ表示状態
       this.init();
     }
 
@@ -395,9 +398,6 @@
           targetSection = document.getElementById("workloadSection");
           // 工数管理セクションに移動時は工数データを初期化
           this.initializeWorkloadSection();
-          break;
-        case "coming-soon":
-          targetSection = document.getElementById("comingSoonSection");
           break;
         default:
           targetSection = document.getElementById("dashboardSection");
@@ -1057,6 +1057,7 @@
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
         // 担当案件用のクローズボタンの初期状態を設定
+        this.showClosedAssignedProjects = false;
         this.updateAssignedClosedProjectsButton(false);
 
         // 全案件一覧は初期状態では読み込まない（ボタンクリック時のみ）
@@ -1083,6 +1084,7 @@
       }
 
       // ボタンの状態をリセット
+      this.showClosedAllProjects = false;
       this.updateClosedProjectsButton(false);
     }
 
@@ -1110,6 +1112,7 @@
         this.renderProjectsList(projectsResult.data || []);
 
         // クローズ案件表示ボタンの状態を更新
+        this.showClosedAllProjects = includeClosed;
         this.updateClosedProjectsButton(includeClosed);
       } catch (error) {
         console.error("全案件読み込みエラー:", error);
@@ -1699,7 +1702,7 @@
     }
 
     /**
-     * クローズ案件の表示切り替え
+     * クローズ案件の表示切り替え（全案件一覧用）
      */
     async toggleClosedProjects() {
       if (!this.currentUser) return;
@@ -1707,18 +1710,10 @@
       try {
         this.showLoading();
 
-        const showClosed =
-          document.getElementById("showClosedBtn").style.display === "none";
+        // 現在の状態を反転
+        this.showClosedAllProjects = !this.showClosedAllProjects;
 
-        // 担当案件一覧を更新
-        const assignedProjectsResult = await this.callGASFunction(
-          "getUserProjects",
-          this.currentUser.employeeNumber,
-          !showClosed
-        );
-        this.renderAssignedProjectsList(assignedProjectsResult.data || []);
-
-        // 全案件一覧を更新（既に読み込み済みの場合のみ）
+        // 全案件一覧のみを更新（既に読み込み済みの場合のみ）
         const projectsContainer = document.getElementById("projectsList");
         if (
           projectsContainer &&
@@ -1727,12 +1722,12 @@
           const projectsResult = await this.callGASFunction(
             "getAllProjects",
             this.currentUser.employeeNumber,
-            !showClosed
+            this.showClosedAllProjects
           );
           this.renderProjectsList(projectsResult.data || []);
         }
 
-        this.updateClosedProjectsButton(!showClosed);
+        this.updateClosedProjectsButton(this.showClosedAllProjects);
       } catch (error) {
         console.error("クローズ案件表示切り替えエラー:", error);
         this.showMessage("案件一覧の更新に失敗しました。", "error");
@@ -1750,19 +1745,18 @@
       try {
         this.showLoading();
 
-        const showAssignedClosed =
-          document.getElementById("showAssignedClosedBtn").style.display ===
-          "none";
+        // 現在の状態を反転
+        this.showClosedAssignedProjects = !this.showClosedAssignedProjects;
 
         // 担当案件一覧のみを更新
         const assignedProjectsResult = await this.callGASFunction(
           "getUserProjects",
           this.currentUser.employeeNumber,
-          !showAssignedClosed
+          this.showClosedAssignedProjects
         );
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
-        this.updateAssignedClosedProjectsButton(!showAssignedClosed);
+        this.updateAssignedClosedProjectsButton(this.showClosedAssignedProjects);
       } catch (error) {
         console.error("担当案件クローズ表示切り替えエラー:", error);
         this.showMessage("担当案件一覧の更新に失敗しました。", "error");
@@ -1802,12 +1796,10 @@
             projectsContainer &&
             !projectsContainer.querySelector(".initial-message")
           ) {
-            const showClosed =
-              document.getElementById("showClosedBtn").style.display === "none";
             const projectsResult = await this.callGASFunction(
               "getAllProjects",
               this.currentUser.employeeNumber,
-              showClosed
+              this.showClosedAllProjects
             );
             this.renderProjectsList(projectsResult.data || []);
           }
@@ -1855,12 +1847,10 @@
             projectsContainer &&
             !projectsContainer.querySelector(".initial-message")
           ) {
-            const showClosed =
-              document.getElementById("showClosedBtn").style.display === "none";
             const projectsResult = await this.callGASFunction(
               "getAllProjects",
               this.currentUser.employeeNumber,
-              showClosed
+              this.showClosedAllProjects
             );
             this.renderProjectsList(projectsResult.data || []);
           }

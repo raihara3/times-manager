@@ -1593,7 +1593,9 @@ function getProjectWorkloadSummary(
       details.push({
         date: formatDate(date),
         employeeNumber: recordEmployeeNumber,
-        employeeName: getUserNameByEmployeeNumber(recordEmployeeNumber.toString()),
+        employeeName: getUserNameByEmployeeNumber(
+          recordEmployeeNumber.toString()
+        ),
         hours: workloadHours,
         memo: memo || "",
       });
@@ -1630,15 +1632,21 @@ function recordWorkload(
     const data = workloadSheet.getDataRange().getValues();
     let existingRowIndex = -1;
 
-    console.log(`工数記録チェック開始 - 日付: ${date}, 社員番号: ${employeeNumber}`);
+    console.log(
+      `工数記録チェック開始 - 日付: ${date}, 社員番号: ${employeeNumber}`
+    );
     console.log(`既存データ行数: ${data.length}`);
 
     for (let i = 1; i < data.length; i++) {
       const existingDate = formatDate(data[i][0]);
       const existingEmployeeNumber = data[i][1].toString();
 
-      console.log(`行${i}: 既存日付=${existingDate}, 既存社員番号=${existingEmployeeNumber}`);
-      console.log(`比較: "${existingDate}" === "${date}" && "${existingEmployeeNumber}" === "${employeeNumber}"`);
+      console.log(
+        `行${i}: 既存日付=${existingDate}, 既存社員番号=${existingEmployeeNumber}`
+      );
+      console.log(
+        `比較: "${existingDate}" === "${date}" && "${existingEmployeeNumber}" === "${employeeNumber}"`
+      );
 
       if (existingDate === date && existingEmployeeNumber === employeeNumber) {
         existingRowIndex = i + 1;
@@ -1651,14 +1659,18 @@ function recordWorkload(
 
     if (existingRowIndex > 0) {
       // 既存記録を更新
-      console.log(`既存記録を更新: 行${existingRowIndex}, 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`);
+      console.log(
+        `既存記録を更新: 行${existingRowIndex}, 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`
+      );
       workloadSheet
         .getRange(existingRowIndex, 1, 1, 4)
         .setValues([[new Date(date), employeeNumber, hours, memo]]);
       console.log(`既存記録の更新完了`);
     } else {
       // 新規記録を追加
-      console.log(`新規記録を追加: 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`);
+      console.log(
+        `新規記録を追加: 日付=${date}, 社員番号=${employeeNumber}, 工数=${hours}, メモ=${memo}`
+      );
       workloadSheet.appendRow([new Date(date), employeeNumber, hours, memo]);
       console.log(`新規記録の追加完了`);
     }
@@ -1685,7 +1697,9 @@ function updateProject(
   description: string
 ): { success: boolean; message: string } {
   try {
-    console.log(`案件情報更新開始 - ID: ${projectId}, 名前: ${name}, 概要: ${description}`);
+    console.log(
+      `案件情報更新開始 - ID: ${projectId}, 名前: ${name}, 概要: ${description}`
+    );
 
     const spreadsheet = getOrCreateProjectsSpreadsheet();
     const projectsSheet = spreadsheet.getSheetByName("projects");
@@ -1716,7 +1730,9 @@ function updateProject(
     }
 
     // 案件名と案件概要を更新
-    console.log(`案件情報を更新: 行${projectRowIndex}, 名前=${name}, 概要=${description}`);
+    console.log(
+      `案件情報を更新: 行${projectRowIndex}, 名前=${name}, 概要=${description}`
+    );
     projectsSheet.getRange(projectRowIndex, 2).setValue(name); // 案件名
     projectsSheet.getRange(projectRowIndex, 3).setValue(description); // 案件概要
 
@@ -1965,7 +1981,7 @@ function getAllProjects(
       const [projectId, name, description, status] = projectData[i];
 
       // クローズ案件を除外する場合のフィルタリング
-      if (!includeClosed && status === "closed") {
+      if (!includeClosed && status === "close") {
         continue;
       }
 
