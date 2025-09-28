@@ -1677,6 +1677,77 @@ function recordWorkload(
 }
 
 /**
+ * 案件情報の更新
+ */
+function updateProject(
+  projectId: string,
+  name: string,
+  description: string
+): { success: boolean; message: string } {
+  try {
+    console.log(`案件情報更新開始 - ID: ${projectId}, 名前: ${name}, 概要: ${description}`);
+
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+
+    if (!projectsSheet) {
+      return {
+        success: false,
+        message: "案件マスタが見つかりません",
+      };
+    }
+
+    const data = projectsSheet.getDataRange().getValues();
+    let projectRowIndex = -1;
+
+    // 該当する案件を検索
+    for (let i = 1; i < data.length; i++) {
+      if (data[i][0] === projectId) {
+        projectRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (projectRowIndex === -1) {
+      return {
+        success: false,
+        message: "案件が見つかりません",
+      };
+    }
+
+    // 案件名と案件概要を更新
+    console.log(`案件情報を更新: 行${projectRowIndex}, 名前=${name}, 概要=${description}`);
+    projectsSheet.getRange(projectRowIndex, 2).setValue(name); // 案件名
+    projectsSheet.getRange(projectRowIndex, 3).setValue(description); // 案件概要
+
+    // 工数記録タブの名前も更新
+    const oldTabName = `${projectId}_${data[projectRowIndex - 1][1]}`;
+    const newTabName = `${projectId}_${name}`;
+
+    if (oldTabName !== newTabName) {
+      const workloadSheet = spreadsheet.getSheetByName(oldTabName);
+      if (workloadSheet) {
+        workloadSheet.setName(newTabName);
+        console.log(`工数記録タブ名を更新: ${oldTabName} → ${newTabName}`);
+      }
+    }
+
+    console.log(`案件情報の更新完了`);
+
+    return {
+      success: true,
+      message: "案件情報を更新しました",
+    };
+  } catch (error) {
+    console.error("案件情報更新エラー:", error);
+    return {
+      success: false,
+      message: "案件情報の更新に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
  * 案件のステータスを更新
  */
 function updateProjectStatus(

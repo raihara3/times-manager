@@ -1148,7 +1148,9 @@
           <div class="project-header">
             <div class="project-info">
               <div class="project-id">${project.projectId}</div>
-              <h4>${project.name}</h4>
+              <div class="project-name-container">
+                <h4>${project.name}</h4>
+              </div>
               <p class="project-description">${
                 project.description || "説明なし"
               }</p>
@@ -1187,6 +1189,10 @@
               }')">
                 <span class="btn-icon">➖</span>
                 割り当て解除
+              </button>
+              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${project.projectId}', '${window.timesApp.escapeForJS(project.name)}', '${window.timesApp.escapeForJS(project.description || '')}')">
+                <span class="btn-icon">✏️</span>
+                編集
               </button>
               ${
                 project.status === "open"
@@ -1252,7 +1258,9 @@
           <div class="project-header">
             <div class="project-info">
               <div class="project-id">${project.projectId}</div>
-              <h4>${project.name}</h4>
+              <div class="project-name-container">
+                <h4>${project.name}</h4>
+              </div>
               <p class="project-description">${
                 project.description || "説明なし"
               }</p>
@@ -1303,6 +1311,10 @@
                 </button>
               `
               }
+              <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${project.projectId}', '${window.timesApp.escapeForJS(project.name)}', '${window.timesApp.escapeForJS(project.description || '')}')">
+                <span class="btn-icon">✏️</span>
+                編集
+              </button>
               ${
                 project.status === "open"
                   ? `
@@ -1489,6 +1501,86 @@
 
       // モーダルを表示
       document.getElementById("workloadModal").style.display = "flex";
+    }
+
+    /**
+     * JavaScript文字列として安全にエスケープ
+     */
+    escapeForJS(str) {
+      if (!str) return '';
+      return str
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r')
+        .replace(/\t/g, '\\t');
+    }
+
+    /**
+     * 案件情報編集
+     */
+    editProject(projectId, projectName, projectDescription) {
+      // 編集モードの設定
+      this.editingProject = {
+        id: projectId,
+        name: projectName,
+        description: projectDescription
+      };
+
+      // フォームに既存データを入力
+      document.getElementById("editProjectName").value = projectName;
+      document.getElementById("editProjectDescription").value = projectDescription || "";
+
+      // モーダルを表示
+      document.getElementById("projectEditModal").style.display = "flex";
+    }
+
+    /**
+     * 案件情報編集モーダルを閉じる
+     */
+    closeProjectEditModal() {
+      document.getElementById("projectEditModal").style.display = "none";
+      document.getElementById("projectEditForm").reset();
+      this.editingProject = null;
+    }
+
+    /**
+     * 案件情報更新の処理
+     */
+    async handleProjectEditSubmission(event) {
+      event.preventDefault();
+
+      if (!this.editingProject) return;
+
+      try {
+        this.showLoading();
+
+        const formData = new FormData(event.target);
+        const name = formData.get("editProjectName");
+        const description = formData.get("editProjectDescription") || "";
+
+        const result = await this.callGASFunction(
+          "updateProject",
+          this.editingProject.id,
+          name,
+          description
+        );
+
+        if (result.success) {
+          this.showMessage('案件情報を更新しました', 'success');
+          this.closeProjectEditModal();
+          // 案件一覧を再読み込み
+          this.loadWorkloadData();
+        } else {
+          this.showMessage(result.message, "error");
+        }
+      } catch (error) {
+        console.error("案件情報更新エラー:", error);
+        this.showMessage("案件情報の更新に失敗しました。", "error");
+      } finally {
+        this.hideLoading();
+      }
     }
 
     /**
@@ -1835,6 +1927,14 @@
         );
       }
 
+      // 案件編集フォーム
+      const projectEditForm = document.getElementById("projectEditForm");
+      if (projectEditForm) {
+        projectEditForm.addEventListener("submit", (e) =>
+          this.handleProjectEditSubmission(e)
+        );
+      }
+
       // モーダル制御
       const closeModalBtn = document.getElementById("closeWorkloadModal");
       if (closeModalBtn) {
@@ -1846,6 +1946,17 @@
       const cancelBtn = document.getElementById("cancelWorkloadBtn");
       if (cancelBtn) {
         cancelBtn.addEventListener("click", () => this.closeWorkloadModal());
+      }
+
+      // 案件編集モーダル制御
+      const closeProjectEditModalBtn = document.getElementById("closeProjectEditModal");
+      if (closeProjectEditModalBtn) {
+        closeProjectEditModalBtn.addEventListener("click", () => this.closeProjectEditModal());
+      }
+
+      const cancelProjectEditBtn = document.getElementById("cancelProjectEditBtn");
+      if (cancelProjectEditBtn) {
+        cancelProjectEditBtn.addEventListener("click", () => this.closeProjectEditModal());
       }
 
       // 全案件読み込みボタン
@@ -1895,6 +2006,15 @@
         modal.addEventListener("click", (e) => {
           if (e.target === modal) {
             this.closeWorkloadModal();
+          }
+        });
+      }
+
+      const projectEditModal = document.getElementById("projectEditModal");
+      if (projectEditModal) {
+        projectEditModal.addEventListener("click", (e) => {
+          if (e.target === projectEditModal) {
+            this.closeProjectEditModal();
           }
         });
       }
