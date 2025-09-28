@@ -1372,8 +1372,8 @@ function getOrCreateProjectsSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsh
   // projectsシートを作成
   const projectsSheet = spreadsheet.insertSheet("projects");
   projectsSheet
-    .getRange(1, 1, 1, 4)
-    .setValues([["案件ID", "案件名", "案件概要", "ステータス"]]);
+    .getRange(1, 1, 1, 6)
+    .setValues([["案件ID", "案件名", "案件概要", "ステータス", "総工数", "更新日"]]);
 
   // project_assignmentsシートを作成
   const assignmentsSheet = spreadsheet.insertSheet("project_assignments");
@@ -1699,6 +1699,71 @@ function getProjectWorkloadSummary(
 }
 
 /**
+ * projectsタブの総工数と更新日を更新
+ */
+function updateProjectTotalWorkload(
+  projectId: string,
+  projectName: string
+): { success: boolean; message: string } {
+  try {
+    console.log(`プロジェクト総工数更新開始: ${projectId}`);
+
+    // 案件スプレッドシートを取得
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+
+    if (!projectsSheet) {
+      return {
+        success: false,
+        message: "projectsシートが見つかりません"
+      };
+    }
+
+    // 総工数を計算
+    const workloadSummary = getProjectWorkloadSummary(projectId, projectName, "");
+    const totalWorkload = workloadSummary.totalWorkload;
+    const now = new Date();
+
+    console.log(`計算された総工数: ${totalWorkload}`);
+
+    // projectsシートで該当案件を検索して更新
+    const projectsData = projectsSheet.getDataRange().getValues();
+    let projectRowIndex = -1;
+
+    for (let i = 1; i < projectsData.length; i++) {
+      if (projectsData[i][0] === projectId) {
+        projectRowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (projectRowIndex === -1) {
+      return {
+        success: false,
+        message: "案件が見つかりません"
+      };
+    }
+
+    // E列に総工数、F列に更新日を設定
+    projectsSheet.getRange(projectRowIndex, 5).setValue(totalWorkload); // E列
+    projectsSheet.getRange(projectRowIndex, 6).setValue(now); // F列
+
+    console.log(`プロジェクト ${projectId} の総工数を ${totalWorkload} に更新しました`);
+
+    return {
+      success: true,
+      message: "総工数を更新しました"
+    };
+  } catch (error) {
+    console.error("総工数更新エラー:", error);
+    return {
+      success: false,
+      message: "総工数の更新に失敗しました: " + String(error)
+    };
+  }
+}
+
+/**
  * 工数を記録
  */
 function recordWorkload(
@@ -1758,6 +1823,15 @@ function recordWorkload(
       );
       workloadSheet.appendRow([new Date(date), employeeNumber, hours, memo]);
       console.log(`新規記録の追加完了`);
+    }
+
+    // 工数記録後に総工数を更新
+    console.log("総工数更新処理を開始");
+    const updateResult = updateProjectTotalWorkload(projectId, projectName);
+    if (!updateResult.success) {
+      console.warn("総工数更新に失敗:", updateResult.message);
+    } else {
+      console.log("総工数更新成功");
     }
 
     return {
@@ -2110,6 +2184,93 @@ function getAllProjects(
     return {
       success: false,
       message: "全案件一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * ホットな案件一覧を取得（E列50時間以上、ステータスがopen）
+ */
+function getHotProjects(): {
+  success: boolean;
+  message: string;
+  data?: Array<{
+    projectId: string;
+    name: string;
+    totalWorkload: number;
+    emoji: string;
+  }>;
+} {
+  try {
+    console.log("ホットな案件取得開始");
+
+    const spreadsheet = getOrCreateProjectsSpreadsheet();
+    const projectsSheet = spreadsheet.getSheetByName("projects");
+
+    if (!projectsSheet) {
+      return {
+        success: false,
+        message: "projectsシートが見つかりません"
+      };
+    }
+
+    const data = projectsSheet.getDataRange().getValues();
+    if (data.length <= 1) {
+      return {
+        success: true,
+        message: "案件データがありません",
+        data: []
+      };
+    }
+
+    const hotProjects = [];
+
+    // ヘッダー行をスキップして処理
+    for (let i = 1; i < data.length; i++) {
+      const row = data[i];
+      const projectId = row[0] ? row[0].toString() : "";
+      const name = row[1] ? row[1].toString() : "";
+      const status = row[3] ? row[3].toString() : "";
+      const totalWorkload = row[4] ? parseFloat(row[4]) || 0 : 0;
+
+      // ステータスがcloseの場合はスキップ
+      if (status === "close") {
+        continue;
+      }
+
+      // 総工数が50時間以上の場合のみ表示
+      if (totalWorkload >= 50) {
+        let emoji = "";
+        if (totalWorkload >= 100) {
+          emoji = "☠️";
+        } else if (totalWorkload >= 50) {
+          emoji = "🔥";
+        }
+
+        hotProjects.push({
+          projectId,
+          name,
+          totalWorkload,
+          emoji
+        });
+      }
+    }
+
+    // 総工数の降順でソート
+    hotProjects.sort((a, b) => b.totalWorkload - a.totalWorkload);
+
+    console.log(`ホットな案件: ${hotProjects.length}件取得`);
+
+    return {
+      success: true,
+      message: "ホットな案件を取得しました",
+      data: hotProjects
+    };
+  } catch (error) {
+    console.error("ホットな案件取得エラー:", error);
+    return {
+      success: false,
+      message: "ホットな案件の取得に失敗しました: " + String(error)
     };
   }
 }

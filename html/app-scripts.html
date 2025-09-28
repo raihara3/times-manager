@@ -86,8 +86,9 @@
 
       this.currentView = "home";
       this.updateUserDisplay();
-      // ホームビュー表示時にメンバー一覧を初期化
+      // ホームビュー表示時にメンバー一覧とホットな案件を初期化
       this.initializeMembersSection();
+      this.initializeHotProjectsSection();
     }
 
     /**
@@ -390,8 +391,9 @@
       switch (sectionName) {
         case "home":
           targetSection = document.getElementById("homeSection");
-          // ホームセクションに移動時はメンバー一覧を初期化
+          // ホームセクションに移動時はメンバー一覧とホットな案件を初期化
           this.initializeMembersSection();
+          this.initializeHotProjectsSection();
           break;
         case "attendance":
           targetSection = document.getElementById("attendanceSection");
@@ -406,6 +408,7 @@
         default:
           targetSection = document.getElementById("homeSection");
           this.initializeMembersSection();
+          this.initializeHotProjectsSection();
       }
 
       if (targetSection) {
@@ -535,6 +538,95 @@
      */
     renderMembersError(message) {
       const container = document.getElementById("membersContainer");
+      if (container) {
+        container.innerHTML = `<div class="loading-text error-text">${message}</div>`;
+      }
+    }
+
+    /**
+     * ホットな案件セクションの初期化
+     */
+    initializeHotProjectsSection() {
+      if (!this.hotProjectsInitialized) {
+        this.loadHotProjects();
+        this.hotProjectsInitialized = true;
+      } else {
+        this.loadHotProjects();
+      }
+    }
+
+    /**
+     * ホットな案件の読み込み
+     */
+    async loadHotProjects() {
+      try {
+        console.log("ホットな案件読み込み開始");
+
+        const result = await this.callGASFunction("getHotProjects");
+
+        console.log("getHotProjects結果:", result);
+
+        if (!result) {
+          console.error("getHotProjects関数がnullまたはundefinedを返しました");
+          this.renderHotProjectsError("サーバーからの応答がありません。");
+          return;
+        }
+
+        if (result.success && result.data) {
+          console.log(`${result.data.length}件のホットな案件を取得`);
+          this.renderHotProjects(result.data);
+        } else {
+          console.error("ホットな案件取得失敗:", result.message || "不明なエラー");
+          this.renderHotProjectsError(result.message || "ホットな案件を取得できませんでした。");
+        }
+      } catch (error) {
+        console.error("ホットな案件読み込みエラー:", error);
+        this.renderHotProjectsError("ホットな案件の読み込みに失敗しました: " + String(error));
+      }
+    }
+
+    /**
+     * ホットな案件の描画
+     */
+    renderHotProjects(projects) {
+      const container = document.getElementById("hotProjectsContainer");
+      if (!container) return;
+
+      if (!projects || projects.length === 0) {
+        container.innerHTML = '<div class="loading-text">現在ホットな案件はありません。</div>';
+        return;
+      }
+
+      let html = `
+        <div class="hot-projects-list">
+      `;
+
+      projects.forEach((project) => {
+        html += `
+          <div class="hot-project-item">
+            <div class="project-info">
+              <span class="project-id">${project.projectId}</span>
+              <span class="project-name">${project.name} ${project.emoji}</span>
+            </div>
+            <div class="project-workload">
+              ${project.totalWorkload}h
+            </div>
+          </div>
+        `;
+      });
+
+      html += `
+        </div>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    /**
+     * ホットな案件のエラー表示
+     */
+    renderHotProjectsError(message) {
+      const container = document.getElementById("hotProjectsContainer");
       if (container) {
         container.innerHTML = `<div class="loading-text error-text">${message}</div>`;
       }

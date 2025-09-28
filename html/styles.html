@@ -788,6 +788,59 @@
     color: var(--error-color);
   }
 
+  /* ホットな案件スタイル */
+  .hot-projects-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .hot-project-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-md);
+    border-left: 4px solid var(--warning-color);
+    transition: var(--transition-fast);
+  }
+
+  .hot-project-item:hover {
+    background: var(--gray-100);
+    transform: translateY(-1px);
+  }
+
+  .project-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .project-id {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    font-weight: 500;
+  }
+
+  .project-name {
+    font-weight: 600;
+    color: var(--gray-800);
+    font-size: 1rem;
+  }
+
+  .project-workload {
+    font-family: 'Monaco', 'Consolas', monospace;
+    font-weight: 700;
+    font-size: 1.125rem;
+    color: var(--warning-color);
+    background: white;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--warning-color);
+  }
+
   /* プリント用スタイル */
   @media print {
     body {
