@@ -976,8 +976,11 @@ function getDailySummary(
           if (isHolidayFlag) {
             // 休日出勤の場合：全勤務時間が残業
             overtimeHours = effectiveWorkHours;
+          } else if (dayData.fullDay) {
+            // 全休の場合：純粋な労働時間のみが残業
+            overtimeHours = actualWorkHours > 0 ? actualWorkHours : 0;
           } else {
-            // 平日（全休含む）：8時間超過分が残業
+            // 平日（半休含む）：8時間超過分が残業
             overtimeHours = effectiveWorkHours > 8 ? effectiveWorkHours - 8 : 0;
           }
 
