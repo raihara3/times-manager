@@ -28,6 +28,9 @@ function doGet(): GoogleAppsScript.HTML.HtmlOutput {
     .evaluate()
     .setTitle(".Times")
     .addMetaTag("viewport", "width=device-width, initial-scale=1.0")
+    .setFaviconUrl(
+      "https://cdn-0.emojis.wiki/emoji-pics/facebook/alarm-clock-facebook.png"
+    )
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
@@ -642,7 +645,7 @@ function getCurrentStatus(employeeNumber: string): { status: string } {
 
       if (records.length > 0) {
         const latest = records[records.length - 1];
-        const today = new Date().toISOString().split('T')[0];
+        const today = new Date().toISOString().split("T")[0];
         console.log(`最新レコード:`, latest);
         console.log(`今日の日付: ${today}, 最新レコードの日付: ${latest.date}`);
 
@@ -828,7 +831,8 @@ function getDailySummary(
     dailyMap.forEach((dayData, date) => {
       // 出退勤がある場合、または全休・半休・休日出勤がある場合に計算
       const hasAttendance = dayData.clockIn && dayData.clockOut;
-      const hasSpecialStatus = dayData.fullDay || dayData.halfDay || dayData.holidayWork;
+      const hasSpecialStatus =
+        dayData.fullDay || dayData.halfDay || dayData.holidayWork;
 
       if (hasAttendance || hasSpecialStatus) {
         try {
@@ -853,7 +857,8 @@ function getDailySummary(
               outTime.setDate(outTime.getDate() + 1);
             }
 
-            workHours = (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
+            workHours =
+              (outTime.getTime() - inTime.getTime()) / (1000 * 60 * 60);
 
             // 中抜け時間を計算
             console.log(`${date} - 中抜け記録数: ${dayData.breaks.length}`);
@@ -889,7 +894,10 @@ function getDailySummary(
                   const breakStart = new Date(`2000/01/01 ${breakStartStr}`);
                   const breakEnd = new Date(`2000/01/01 ${breakEndStr}`);
 
-                  if (isNaN(breakStart.getTime()) || isNaN(breakEnd.getTime())) {
+                  if (
+                    isNaN(breakStart.getTime()) ||
+                    isNaN(breakEnd.getTime())
+                  ) {
                     console.log(
                       `${date} - 中抜け${
                         index + 1
@@ -939,7 +947,12 @@ function getDailySummary(
           let actualWorkHours = workHours - breakHours;
 
           // 昼休憩（1時間）を基本的に差し引く（特別打刻の場合は除く）
-          if (!dayData.holidayWork && !dayData.fullDay && !dayData.halfDay && hasAttendance) {
+          if (
+            !dayData.holidayWork &&
+            !dayData.fullDay &&
+            !dayData.halfDay &&
+            hasAttendance
+          ) {
             actualWorkHours -= 1; // 1時間の昼休憩を自動減算
           }
 
@@ -1402,7 +1415,9 @@ function getOrCreateProjectsSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsh
   const projectsSheet = spreadsheet.insertSheet("projects");
   projectsSheet
     .getRange(1, 1, 1, 6)
-    .setValues([["案件ID", "案件名", "案件概要", "ステータス", "総工数", "更新日"]]);
+    .setValues([
+      ["案件ID", "案件名", "案件概要", "ステータス", "総工数", "更新日"],
+    ]);
 
   // project_assignmentsシートを作成
   const assignmentsSheet = spreadsheet.insertSheet("project_assignments");
@@ -1744,12 +1759,16 @@ function updateProjectTotalWorkload(
     if (!projectsSheet) {
       return {
         success: false,
-        message: "projectsシートが見つかりません"
+        message: "projectsシートが見つかりません",
       };
     }
 
     // 総工数を計算
-    const workloadSummary = getProjectWorkloadSummary(projectId, projectName, "");
+    const workloadSummary = getProjectWorkloadSummary(
+      projectId,
+      projectName,
+      ""
+    );
     const totalWorkload = workloadSummary.totalWorkload;
     const now = new Date();
 
@@ -1769,7 +1788,7 @@ function updateProjectTotalWorkload(
     if (projectRowIndex === -1) {
       return {
         success: false,
-        message: "案件が見つかりません"
+        message: "案件が見つかりません",
       };
     }
 
@@ -1777,17 +1796,19 @@ function updateProjectTotalWorkload(
     projectsSheet.getRange(projectRowIndex, 5).setValue(totalWorkload); // E列
     projectsSheet.getRange(projectRowIndex, 6).setValue(now); // F列
 
-    console.log(`プロジェクト ${projectId} の総工数を ${totalWorkload} に更新しました`);
+    console.log(
+      `プロジェクト ${projectId} の総工数を ${totalWorkload} に更新しました`
+    );
 
     return {
       success: true,
-      message: "総工数を更新しました"
+      message: "総工数を更新しました",
     };
   } catch (error) {
     console.error("総工数更新エラー:", error);
     return {
       success: false,
-      message: "総工数の更新に失敗しました: " + String(error)
+      message: "総工数の更新に失敗しました: " + String(error),
     };
   }
 }
@@ -2239,7 +2260,7 @@ function getHotProjects(): {
     if (!projectsSheet) {
       return {
         success: false,
-        message: "projectsシートが見つかりません"
+        message: "projectsシートが見つかりません",
       };
     }
 
@@ -2248,7 +2269,7 @@ function getHotProjects(): {
       return {
         success: true,
         message: "案件データがありません",
-        data: []
+        data: [],
       };
     }
 
@@ -2280,7 +2301,7 @@ function getHotProjects(): {
           projectId,
           name,
           totalWorkload,
-          emoji
+          emoji,
         });
       }
     }
@@ -2293,13 +2314,13 @@ function getHotProjects(): {
     return {
       success: true,
       message: "ホットな案件を取得しました",
-      data: hotProjects
+      data: hotProjects,
     };
   } catch (error) {
     console.error("ホットな案件取得エラー:", error);
     return {
       success: false,
-      message: "ホットな案件の取得に失敗しました: " + String(error)
+      message: "ホットな案件の取得に失敗しました: " + String(error),
     };
   }
 }
