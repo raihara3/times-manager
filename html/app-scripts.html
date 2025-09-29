@@ -505,7 +505,7 @@
         ) {
           // 今月の更新がない場合
           emoji = "";
-        } else if (overtime >= 30) {
+        } else if (overtime >= 30 && overtime < 45) {
           emoji = "🔥";
         } else if (overtime >= 45) {
           emoji = "💀";
@@ -753,7 +753,7 @@
       const typeLabels = {
         fullDay: "全休（8時間加算）",
         halfDay: "半休（4時間加算）",
-        holidayWork: "休日出勤（勤務時間全て残業）"
+        holidayWork: "休日出勤（勤務時間全て残業）",
       };
 
       const typeLabel = typeLabels[selectedType] || selectedType;

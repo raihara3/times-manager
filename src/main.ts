@@ -1123,6 +1123,54 @@ function getMonthlyMetrics(
     };
 
     console.log("月次メトリクス計算完了:", result);
+
+    // 現在月の場合のみUSER_SPREADSHEET_IDのusersタブのD列を自動更新
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    if (year === currentYear && month === currentMonth) {
+      try {
+        console.log(
+          `現在月のため、社員番号 ${employeeNumber} のD列を更新します`
+        );
+
+        const spreadsheet = getOrCreateSpreadsheet();
+        const sheet = spreadsheet.getSheetByName("users");
+
+        if (sheet) {
+          // D列とE列のヘッダーを確認・追加
+          const headerRange = sheet.getRange(1, 1, 1, 5);
+          const headers = headerRange.getValues()[0];
+
+          if (!headers[3]) {
+            sheet.getRange(1, 4).setValue("過不足時間");
+          }
+          if (!headers[4]) {
+            sheet.getRange(1, 5).setValue("更新日時");
+          }
+
+          // 社員番号で行を検索
+          const dataRange = sheet.getDataRange();
+          const values = dataRange.getValues();
+
+          for (let i = 1; i < values.length; i++) {
+            if (values[i][0].toString() === employeeNumber) {
+              const rowIndex = i + 1;
+              sheet.getRange(rowIndex, 4).setValue(result.surplusDeficit);
+              sheet.getRange(rowIndex, 5).setValue(now);
+              console.log(
+                `D列更新完了: 行${rowIndex}, 過不足時間=${result.surplusDeficit}h`
+              );
+              break;
+            }
+          }
+        }
+      } catch (updateError) {
+        console.error("D列更新エラー:", updateError);
+      }
+    }
+
     return result;
   } catch (error) {
     console.error("月次メトリクス取得エラー:", error);
@@ -2396,6 +2444,195 @@ function testProjectsSpreadsheetConnection(): {
     return {
       success: false,
       message: "案件スプレッドシート接続失敗: " + String(error),
+    };
+  }
+}
+
+/**
+ * 全ユーザーの過不足時間を計算してUSER_SPREADSHEET_IDのusersタブを更新
+ */
+function updateAllUsersSurplusDeficit(): {
+  success: boolean;
+  message: string;
+  data?: any;
+} {
+  try {
+    console.log("=== 全ユーザーの過不足時間更新開始 ===");
+
+    const spreadsheet = getOrCreateSpreadsheet();
+    const sheet = spreadsheet.getSheetByName("users");
+
+    if (!sheet) {
+      return {
+        success: false,
+        message: "usersシートが見つかりません",
+      };
+    }
+
+    // D列とE列が存在しない場合はヘッダーを追加
+    const headerRange = sheet.getRange(1, 1, 1, 5);
+    const headers = headerRange.getValues()[0];
+
+    if (!headers[3]) {
+      sheet.getRange(1, 4).setValue("過不足時間");
+    }
+    if (!headers[4]) {
+      sheet.getRange(1, 5).setValue("更新日時");
+    }
+
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+
+    if (values.length <= 1) {
+      return {
+        success: true,
+        message: "更新対象のユーザーがいません",
+        data: { updatedCount: 0 },
+      };
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    let updatedCount = 0;
+    const results = [];
+
+    for (let i = 1; i < values.length; i++) {
+      const employeeNumber = values[i][0] ? values[i][0].toString() : "";
+
+      if (!employeeNumber) {
+        continue;
+      }
+
+      try {
+        // 過不足時間を計算
+        const metrics = getMonthlyMetrics(employeeNumber, year, month);
+        const surplusDeficit = metrics.surplusDeficit;
+
+        // D列に過不足時間、E列に更新日時を設定
+        sheet.getRange(i + 1, 4).setValue(surplusDeficit);
+        sheet.getRange(i + 1, 5).setValue(now);
+
+        updatedCount++;
+
+        results.push({
+          employeeNumber,
+          name: values[i][1] ? values[i][1].toString() : "",
+          surplusDeficit,
+        });
+
+        console.log(
+          `社員番号: ${employeeNumber}, 過不足時間: ${surplusDeficit}h を更新`
+        );
+      } catch (error) {
+        console.error(
+          `社員番号 ${employeeNumber} の過不足時間計算エラー:`,
+          error
+        );
+      }
+    }
+
+    console.log(`=== ${updatedCount}名の過不足時間を更新しました ===`);
+
+    return {
+      success: true,
+      message: `${updatedCount}名の過不足時間を更新しました`,
+      data: {
+        updatedCount,
+        results,
+      },
+    };
+  } catch (error) {
+    console.error("過不足時間更新エラー:", error);
+    return {
+      success: false,
+      message: "過不足時間の更新に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
+ * 特定のユーザーの過不足時間を計算してUSER_SPREADSHEET_IDのusersタブを更新
+ */
+function updateUserSurplusDeficit(employeeNumber: string): {
+  success: boolean;
+  message: string;
+  data?: any;
+} {
+  try {
+    console.log(`=== 社員番号 ${employeeNumber} の過不足時間更新開始 ===`);
+
+    const spreadsheet = getOrCreateSpreadsheet();
+    const sheet = spreadsheet.getSheetByName("users");
+
+    if (!sheet) {
+      return {
+        success: false,
+        message: "usersシートが見つかりません",
+      };
+    }
+
+    // D列とE列が存在しない場合はヘッダーを追加
+    const headerRange = sheet.getRange(1, 1, 1, 5);
+    const headers = headerRange.getValues()[0];
+
+    if (!headers[3]) {
+      sheet.getRange(1, 4).setValue("過不足時間");
+    }
+    if (!headers[4]) {
+      sheet.getRange(1, 5).setValue("更新日時");
+    }
+
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+
+    let rowIndex = -1;
+
+    for (let i = 1; i < values.length; i++) {
+      if (values[i][0].toString() === employeeNumber) {
+        rowIndex = i + 1;
+        break;
+      }
+    }
+
+    if (rowIndex === -1) {
+      return {
+        success: false,
+        message: `社員番号 ${employeeNumber} が見つかりません`,
+      };
+    }
+
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+
+    // 過不足時間を計算
+    const metrics = getMonthlyMetrics(employeeNumber, year, month);
+    const surplusDeficit = metrics.surplusDeficit;
+
+    // D列に過不足時間、E列に更新日時を設定
+    sheet.getRange(rowIndex, 4).setValue(surplusDeficit);
+    sheet.getRange(rowIndex, 5).setValue(now);
+
+    console.log(
+      `社員番号: ${employeeNumber}, 過不足時間: ${surplusDeficit}h を更新`
+    );
+
+    return {
+      success: true,
+      message: `過不足時間を更新しました: ${surplusDeficit}h`,
+      data: {
+        employeeNumber,
+        surplusDeficit,
+        updatedAt: now,
+      },
+    };
+  } catch (error) {
+    console.error("過不足時間更新エラー:", error);
+    return {
+      success: false,
+      message: "過不足時間の更新に失敗しました: " + String(error),
     };
   }
 }
