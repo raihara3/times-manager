@@ -1628,15 +1628,11 @@
             <div class="project-stats">
               <div class="stat-item">
                 <span>自分の工数:</span>
-                <span class="stat-value">${project.myWorkload.toFixed(
-                  1
-                )}h</span>
+                <span class="stat-value">-</span>
               </div>
               <div class="stat-item">
                 <span>総工数:</span>
-                <span class="stat-value">${project.totalWorkload.toFixed(
-                  1
-                )}h</span>
+                <span class="stat-value">-</span>
               </div>
               <span class="status-badge ${project.status}">${
             project.status === "open" ? "オープン" : "クローズ"
@@ -1648,10 +1644,6 @@
               ${
                 project.isAssigned
                   ? `
-                <button class="btn btn-primary btn-sm" onclick="window.timesApp.openWorkloadModal('${project.projectId}', '${project.name}')">
-                  <span class="btn-icon">⏱️</span>
-                  工数入力
-                </button>
                 <button class="btn btn-outline btn-sm" onclick="window.timesApp.unassignProject('${project.projectId}')">
                   <span class="btn-icon">➖</span>
                   割り当て解除
@@ -1688,20 +1680,15 @@
               `
               }
             </div>
-            <button class="accordion-toggle" onclick="window.timesApp.toggleAccordion('${
+            <button class="accordion-toggle" onclick="window.timesApp.loadProjectWorkloadDetails('${
               project.projectId
-            }')">
-              <span class="accordion-icon">📋</span>
-              工数詳細
-              <span class="accordion-arrow">▼</span>
+            }', '${window.timesApp.escapeForJS(project.name)}')">
+              <span class="accordion-icon">🔄</span>
+              読み込み
             </button>
           </div>
           <div class="accordion-content" id="accordion-${project.projectId}">
-            ${this.renderWorkloadDetails(
-              project.workloadDetails,
-              project.projectId,
-              project.name
-            )}
+            <div class="loading-text">読み込みボタンを押してください</div>
           </div>
         </div>
       `
@@ -1771,6 +1758,61 @@
       } else {
         content.classList.add("open");
         arrow.textContent = "▲";
+      }
+    }
+
+    /**
+     * 案件の工数詳細を読み込み
+     */
+    async loadProjectWorkloadDetails(projectId, projectName) {
+      if (!this.currentUser) return;
+
+      try {
+        const accordionContent = document.getElementById(`accordion-${projectId}`);
+        const loadButton = event.target.closest('.accordion-toggle');
+
+        accordionContent.innerHTML = '<div class="loading-text">読み込み中...</div>';
+
+        const workloadSummary = await this.callGASFunction(
+          'getProjectWorkloadSummary',
+          projectId,
+          projectName,
+          this.currentUser.employeeNumber
+        );
+
+        const myWorkload = workloadSummary.myWorkload || 0;
+        const totalWorkload = workloadSummary.totalWorkload || 0;
+        const workloadDetails = workloadSummary.details || [];
+
+        const projectCard = loadButton.closest('.project-card');
+        const statItems = projectCard.querySelectorAll('.stat-item .stat-value');
+        if (statItems.length >= 2) {
+          statItems[0].textContent = `${myWorkload.toFixed(1)}h`;
+          statItems[1].textContent = `${totalWorkload.toFixed(1)}h`;
+        }
+
+        accordionContent.innerHTML = this.renderWorkloadDetails(
+          workloadDetails,
+          projectId,
+          projectName
+        );
+
+        loadButton.onclick = () => this.toggleAccordion(projectId);
+        loadButton.querySelector('.accordion-icon').textContent = '📋';
+        loadButton.childNodes[2].textContent = ' 工数詳細 ';
+
+        const arrowSpan = document.createElement('span');
+        arrowSpan.className = 'accordion-arrow';
+        arrowSpan.textContent = '▼';
+        loadButton.appendChild(arrowSpan);
+
+        accordionContent.classList.add('open');
+        arrowSpan.textContent = '▲';
+
+      } catch (error) {
+        console.error('工数詳細読み込みエラー:', error);
+        const accordionContent = document.getElementById(`accordion-${projectId}`);
+        accordionContent.innerHTML = '<div class="loading-text">読み込みに失敗しました</div>';
       }
     }
 
