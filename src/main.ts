@@ -464,8 +464,24 @@ function stampAction(
     const sheet = getOrCreateAttendanceSheet(sheetName);
 
     const now = new Date();
-    const date =
-      specifiedDate || Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
+    let date: string;
+
+    if (specifiedDate) {
+      date = specifiedDate;
+    } else if (action === "clockIn") {
+      // 出勤打刻の場合は現在の日付を使用
+      date = Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
+    } else {
+      // 出勤打刻以外（退勤、中抜け開始、中抜け終了）の場合は直近の出勤打刻の日付を使用
+      const openRecord = getOpenRecord(employeeNumber);
+      if (openRecord && openRecord.date) {
+        date = openRecord.date;
+      } else {
+        // オープンなレコードがない場合は現在の日付を使用（フォールバック）
+        date = Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
+      }
+    }
+
     const timestamp = Utilities.formatDate(
       now,
       "Asia/Tokyo",
