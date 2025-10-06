@@ -1485,8 +1485,15 @@
       }
 
       container.innerHTML = projects
-        .map(
-          (project) => `
+        .map((project) => {
+          const consumedCost = (project.totalWorkload / 8) * 50000;
+          const budget =
+            project.budget !== null && project.budget !== undefined
+              ? project.budget
+              : null;
+          const remaining = budget !== null ? budget - consumedCost : null;
+
+          return `
         <div class="project-card assigned-project ${
           project.status === "close" ? "closed" : ""
         }">
@@ -1516,6 +1523,31 @@
                   1
                 )}h</span>
               </div>
+              <hr />
+              <div class="stat-item">
+                <span>予算:</span>
+                <span class="stat-value ${
+                  budget === null ? "budget-unset" : ""
+                }">${
+            budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
+          }</span>
+              </div>
+              <div class="stat-item">
+                <span>消費額:</span>
+                <span class="stat-value">¥${consumedCost.toLocaleString()}</span>
+              </div>
+              <div class="stat-item">
+                <span>残金:</span>
+                <span class="stat-value ${
+                  budget === null
+                    ? "budget-unset"
+                    : remaining < 0
+                    ? "over-budget"
+                    : ""
+                }">${
+            budget !== null ? "¥" + remaining.toLocaleString() : "予算未設定"
+          }</span>
+              </div>
               <span class="status-badge ${project.status}">${
             project.status === "open" ? "オープン" : "クローズ"
           }</span>
@@ -1539,7 +1571,11 @@
                 project.projectId
               }', '${window.timesApp.escapeForJS(
             project.name
-          )}', '${window.timesApp.escapeForJS(project.description || "")}')">
+          )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
+            project.budget !== null && project.budget !== undefined
+              ? project.budget
+              : "null"
+          })">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1577,8 +1613,8 @@
             )}
           </div>
         </div>
-      `
-        )
+      `;
+        })
         .join("");
     }
 
@@ -1603,8 +1639,15 @@
       }
 
       container.innerHTML = projects
-        .map(
-          (project) => `
+        .map((project) => {
+          const consumedCost = ((project.totalWorkload || 0) / 8) * 50000;
+          const budget =
+            project.budget !== null && project.budget !== undefined
+              ? project.budget
+              : null;
+          const remaining = budget !== null ? budget - consumedCost : null;
+
+          return `
         <div class="project-card ${
           project.status === "closed" ? "closed" : ""
         } ${!project.isAssigned ? "not-assigned" : ""}">
@@ -1634,11 +1677,42 @@
                 <span>総工数:</span>
                 <span class="stat-value">-</span>
               </div>
+              <hr />
+              <div class="stat-item">
+                <span>予算:</span>
+                <span class="stat-value ${
+                  budget === null ? "budget-unset" : ""
+                }">${
+            budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
+          }</span>
+              </div>
+              <div class="stat-item">
+                <span>消費額:</span>
+                <span class="stat-value">¥${consumedCost.toLocaleString()}</span>
+              </div>
+              <div class="stat-item">
+                <span>残金:</span>
+                <span class="stat-value ${
+                  budget === null
+                    ? "budget-unset"
+                    : remaining < 0
+                    ? "over-budget"
+                    : ""
+                }">${
+            budget !== null ? "¥" + remaining.toLocaleString() : "予算未設定"
+          }</span>
+              </div>
               <span class="status-badge ${project.status}">${
             project.status === "open" ? "オープン" : "クローズ"
           }</span>
             </div>
-          </div>
+          </div>`;
+        })
+        .map((htmlStart, index) => {
+          const project = projects[index];
+          return (
+            htmlStart +
+            `
           <div class="project-actions">
             <div class="btn-group">
               ${
@@ -1659,8 +1733,12 @@
               <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${
                 project.projectId
               }', '${window.timesApp.escapeForJS(
-            project.name
-          )}', '${window.timesApp.escapeForJS(project.description || "")}')">
+              project.name
+            )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
+              project.budget !== null && project.budget !== undefined
+                ? project.budget
+                : "null"
+            })">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1692,7 +1770,8 @@
           </div>
         </div>
       `
-        )
+          );
+        })
         .join("");
     }
 
@@ -1768,13 +1847,16 @@
       if (!this.currentUser) return;
 
       try {
-        const accordionContent = document.getElementById(`accordion-${projectId}`);
-        const loadButton = event.target.closest('.accordion-toggle');
+        const accordionContent = document.getElementById(
+          `accordion-${projectId}`
+        );
+        const loadButton = event.target.closest(".accordion-toggle");
 
-        accordionContent.innerHTML = '<div class="loading-text">読み込み中...</div>';
+        accordionContent.innerHTML =
+          '<div class="loading-text">読み込み中...</div>';
 
         const workloadSummary = await this.callGASFunction(
-          'getProjectWorkloadSummary',
+          "getProjectWorkloadSummary",
           projectId,
           projectName,
           this.currentUser.employeeNumber
@@ -1784,8 +1866,10 @@
         const totalWorkload = workloadSummary.totalWorkload || 0;
         const workloadDetails = workloadSummary.details || [];
 
-        const projectCard = loadButton.closest('.project-card');
-        const statItems = projectCard.querySelectorAll('.stat-item .stat-value');
+        const projectCard = loadButton.closest(".project-card");
+        const statItems = projectCard.querySelectorAll(
+          ".stat-item .stat-value"
+        );
         if (statItems.length >= 2) {
           statItems[0].textContent = `${myWorkload.toFixed(1)}h`;
           statItems[1].textContent = `${totalWorkload.toFixed(1)}h`;
@@ -1798,21 +1882,23 @@
         );
 
         loadButton.onclick = () => this.toggleAccordion(projectId);
-        loadButton.querySelector('.accordion-icon').textContent = '📋';
-        loadButton.childNodes[2].textContent = ' 工数詳細 ';
+        loadButton.querySelector(".accordion-icon").textContent = "📋";
+        loadButton.childNodes[2].textContent = " 工数詳細 ";
 
-        const arrowSpan = document.createElement('span');
-        arrowSpan.className = 'accordion-arrow';
-        arrowSpan.textContent = '▼';
+        const arrowSpan = document.createElement("span");
+        arrowSpan.className = "accordion-arrow";
+        arrowSpan.textContent = "▼";
         loadButton.appendChild(arrowSpan);
 
-        accordionContent.classList.add('open');
-        arrowSpan.textContent = '▲';
-
+        accordionContent.classList.add("open");
+        arrowSpan.textContent = "▲";
       } catch (error) {
-        console.error('工数詳細読み込みエラー:', error);
-        const accordionContent = document.getElementById(`accordion-${projectId}`);
-        accordionContent.innerHTML = '<div class="loading-text">読み込みに失敗しました</div>';
+        console.error("工数詳細読み込みエラー:", error);
+        const accordionContent = document.getElementById(
+          `accordion-${projectId}`
+        );
+        accordionContent.innerHTML =
+          '<div class="loading-text">読み込みに失敗しました</div>';
       }
     }
 
@@ -1830,12 +1916,18 @@
         const formData = new FormData(event.target);
         const name = formData.get("projectName");
         const description = formData.get("projectDescription");
+        const budgetValue = formData.get("projectBudget");
+        const budget =
+          budgetValue && budgetValue.trim() !== ""
+            ? parseFloat(budgetValue)
+            : undefined;
 
         const result = await this.callGASFunction(
           "createProject",
           name,
           description,
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
+          budget
         );
 
         if (result.success) {
@@ -1929,18 +2021,23 @@
     /**
      * 案件情報編集
      */
-    editProject(projectId, projectName, projectDescription) {
+    editProject(projectId, projectName, projectDescription, projectBudget) {
       // 編集モードの設定
       this.editingProject = {
         id: projectId,
         name: projectName,
         description: projectDescription,
+        budget: projectBudget,
       };
 
       // フォームに既存データを入力
       document.getElementById("editProjectName").value = projectName;
       document.getElementById("editProjectDescription").value =
         projectDescription || "";
+      document.getElementById("editProjectBudget").value =
+        projectBudget !== null && projectBudget !== undefined
+          ? projectBudget
+          : "";
 
       // モーダルを表示
       document.getElementById("projectEditModal").style.display = "flex";
@@ -1969,12 +2066,18 @@
         const formData = new FormData(event.target);
         const name = formData.get("editProjectName");
         const description = formData.get("editProjectDescription") || "";
+        const budgetValue = formData.get("editProjectBudget");
+        const budget =
+          budgetValue && budgetValue.trim() !== ""
+            ? parseFloat(budgetValue)
+            : undefined;
 
         const result = await this.callGASFunction(
           "updateProject",
           this.editingProject.id,
           name,
-          description
+          description,
+          budget
         );
 
         if (result.success) {

@@ -63,6 +63,19 @@
           ></textarea>
         </div>
       </div>
+      <div class="form-row">
+        <div class="input-group">
+          <label for="projectBudget">💰 予算（円）</label>
+          <input
+            type="number"
+            id="projectBudget"
+            name="projectBudget"
+            placeholder="例: 1000000（未入力でも登録可）"
+            min="0"
+            step="1"
+          />
+        </div>
+      </div>
       <div class="form-actions">
         <button type="submit" class="btn btn-primary" id="createProjectBtn">
           <span class="btn-icon">🚀</span>
@@ -135,6 +148,17 @@
             placeholder="例: 企業サイトのデザインとシステム刷新"
             rows="3"
           ></textarea>
+        </div>
+        <div class="input-group">
+          <label for="editProjectBudget">💰 予算（円）</label>
+          <input
+            type="number"
+            id="editProjectBudget"
+            name="editProjectBudget"
+            placeholder="例: 1000000（未入力でも更新可）"
+            min="0"
+            step="1"
+          />
         </div>
         <div class="form-actions">
           <button type="submit" class="btn btn-primary" id="submitProjectEditBtn">
@@ -348,6 +372,16 @@
   .stat-value {
     font-weight: 600;
     color: var(--primary-color);
+  }
+
+  .stat-value.budget-unset {
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  .stat-value.over-budget {
+    color: #ef4444;
+    font-weight: 700;
   }
 
   .project-actions {

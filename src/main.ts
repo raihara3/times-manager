@@ -1451,9 +1451,9 @@ function getOrCreateProjectsSpreadsheet(): GoogleAppsScript.Spreadsheet.Spreadsh
   // projectsシートを作成
   const projectsSheet = spreadsheet.insertSheet("projects");
   projectsSheet
-    .getRange(1, 1, 1, 6)
+    .getRange(1, 1, 1, 7)
     .setValues([
-      ["案件ID", "案件名", "案件概要", "ステータス", "総工数", "更新日"],
+      ["案件ID", "案件名", "案件概要", "ステータス", "総工数", "更新日", "予算"],
     ]);
 
   // project_assignmentsシートを作成
@@ -1502,7 +1502,8 @@ function getOrCreateProjectTab(
 function createProject(
   name: string,
   description: string,
-  employeeNumber: string
+  employeeNumber: string,
+  budget?: number
 ): { success: boolean; message: string; data?: any } {
   try {
     const spreadsheet = getOrCreateProjectsSpreadsheet();
@@ -1523,8 +1524,16 @@ function createProject(
       newProjectId = `PROJ${(lastNumber + 1).toString().padStart(3, "0")}`;
     }
 
-    // 案件を追加
-    projectsSheet.appendRow([newProjectId, name, description, "open"]);
+    // 案件を追加（G列に予算を追加）
+    projectsSheet.appendRow([
+      newProjectId,
+      name,
+      description,
+      "open",
+      "",
+      "",
+      budget !== undefined && budget !== null ? budget : "",
+    ]);
 
     // 案件担当者を追加
     assignProjectToUser(newProjectId, employeeNumber);
@@ -1535,7 +1544,7 @@ function createProject(
     return {
       success: true,
       message: "案件を作成しました",
-      data: { projectId: newProjectId, name, description },
+      data: { projectId: newProjectId, name, description, budget },
     };
   } catch (error) {
     console.error("案件作成エラー:", error);
@@ -1696,6 +1705,7 @@ function getUserProjects(
             myWorkload: workloadSummary.myWorkload,
             totalWorkload: workloadSummary.totalWorkload,
             workloadDetails: workloadSummary.details,
+            budget: projectRow[6] !== undefined && projectRow[6] !== "" ? projectRow[6] : null,
           });
         }
       }
@@ -1940,11 +1950,12 @@ function recordWorkload(
 function updateProject(
   projectId: string,
   name: string,
-  description: string
+  description: string,
+  budget?: number
 ): { success: boolean; message: string } {
   try {
     console.log(
-      `案件情報更新開始 - ID: ${projectId}, 名前: ${name}, 概要: ${description}`
+      `案件情報更新開始 - ID: ${projectId}, 名前: ${name}, 概要: ${description}, 予算: ${budget}`
     );
 
     const spreadsheet = getOrCreateProjectsSpreadsheet();
@@ -1977,10 +1988,14 @@ function updateProject(
 
     // 案件名と案件概要を更新
     console.log(
-      `案件情報を更新: 行${projectRowIndex}, 名前=${name}, 概要=${description}`
+      `案件情報を更新: 行${projectRowIndex}, 名前=${name}, 概要=${description}, 予算=${budget}`
     );
     projectsSheet.getRange(projectRowIndex, 2).setValue(name); // 案件名
     projectsSheet.getRange(projectRowIndex, 3).setValue(description); // 案件概要
+
+    // G列に予算を更新
+    const budgetValue = budget !== undefined && budget !== null ? budget : "";
+    projectsSheet.getRange(projectRowIndex, 7).setValue(budgetValue); // 予算
 
     // 工数記録タブの名前も更新
     const oldTabName = `${projectId}_${data[projectRowIndex - 1][1]}`;
@@ -2224,7 +2239,8 @@ function getAllProjects(
 
     // ヘッダー行をスキップして案件データを処理
     for (let i = 1; i < projectData.length; i++) {
-      const [projectId, name, description, status] = projectData[i];
+      const projectRow = projectData[i];
+      const [projectId, name, description, status] = projectRow;
 
       // クローズ案件を除外する場合のフィルタリング
       if (!includeClosed && status === "close") {
@@ -2253,6 +2269,7 @@ function getAllProjects(
         myWorkload: workloadSummary.myWorkload,
         totalWorkload: workloadSummary.totalWorkload,
         workloadDetails: workloadSummary.details,
+        budget: projectRow[6] !== undefined && projectRow[6] !== "" ? projectRow[6] : null,
       });
     }
 
