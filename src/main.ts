@@ -2242,23 +2242,13 @@ function getAllProjects(
         (row) => row[1] === projectId && row[0].toString() === employeeNumber
       );
 
-      // 工数サマリーを取得
-      const workloadSummary = getProjectWorkloadSummary(
-        projectId,
-        name,
-        employeeNumber
-      );
-      console.log(`案件 ${projectId} の工数サマリー:`, workloadSummary);
-
       projects.push({
         projectId,
         name,
         description,
         status,
         isAssigned: isAssignedToUser,
-        myWorkload: workloadSummary.myWorkload,
-        totalWorkload: workloadSummary.totalWorkload,
-        workloadDetails: workloadSummary.details,
+        totalWorkload: projectRow[4] || 0,
         budget: projectRow[6] !== undefined && projectRow[6] !== "" ? projectRow[6] : null,
       });
     }

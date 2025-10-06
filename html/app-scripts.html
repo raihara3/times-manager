@@ -1666,7 +1666,7 @@
               </div>
               <div class="stat-item">
                 <span>総工数:</span>
-                <span class="stat-value">-</span>
+                <span class="stat-value">${(project.totalWorkload || 0).toFixed(1)}h</span>
               </div>
               <hr />
               <div class="stat-item">
@@ -1855,8 +1855,12 @@
 
         const loadButton = event.target.closest(".accordion-toggle");
 
+        // ローディング表示
+        loadButton.disabled = true;
+        const originalButtonHTML = loadButton.innerHTML;
+        loadButton.innerHTML = '<span class="accordion-icon">⏳</span> 読み込み中...';
         accordionContent.innerHTML =
-          '<div class="loading-text">読み込み中...</div>';
+          '<div class="loading-text">工数詳細を読み込んでいます...</div>';
 
         const workloadSummary = await this.callGASFunction(
           "getProjectWorkloadSummary",
@@ -1884,24 +1888,34 @@
           projectName
         );
 
+        // ボタンを元に戻す
+        loadButton.disabled = false;
         loadButton.onclick = () => this.toggleAccordion(projectId);
-        loadButton.querySelector(".accordion-icon").textContent = "📋";
-        loadButton.childNodes[2].textContent = " 工数詳細 ";
-
-        const arrowSpan = document.createElement("span");
-        arrowSpan.className = "accordion-arrow";
-        arrowSpan.textContent = "▼";
-        loadButton.appendChild(arrowSpan);
+        loadButton.innerHTML = '<span class="accordion-icon">📋</span> 工数詳細 <span class="accordion-arrow">▼</span>';
 
         accordionContent.classList.add("open");
-        arrowSpan.textContent = "▲";
       } catch (error) {
         console.error("工数詳細読み込みエラー:", error);
-        const accordionContent = document.getElementById(
-          `accordion-${projectId}`
+
+        // エラー時もボタンを元に戻す
+        const loadButton = event.target.closest(".accordion-toggle");
+        if (loadButton) {
+          loadButton.disabled = false;
+          loadButton.innerHTML = '<span class="accordion-icon">📋</span> 読み込み <span class="accordion-arrow"></span>';
+        }
+
+        let accordionContent = document.getElementById(
+          `accordion-assigned-${projectId}`
         );
-        accordionContent.innerHTML =
-          '<div class="loading-text">読み込みに失敗しました</div>';
+        if (!accordionContent) {
+          accordionContent = document.getElementById(
+            `accordion-${projectId}`
+          );
+        }
+        if (accordionContent) {
+          accordionContent.innerHTML =
+            '<div class="loading-text">読み込みに失敗しました。もう一度お試しください。</div>';
+        }
       }
     }
 
