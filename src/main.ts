@@ -1689,22 +1689,12 @@ function getUserProjects(
       if (projectRow) {
         const status = projectRow[3];
         if (includeClosed || status === "open") {
-          // 工数サマリーを取得
-          const workloadSummary = getProjectWorkloadSummary(
-            projectId,
-            projectRow[1],
-            employeeNumber
-          );
-          console.log(`案件 ${projectId} の工数サマリー:`, workloadSummary);
-
           projects.push({
             projectId: projectRow[0],
             name: projectRow[1],
             description: projectRow[2],
             status: status,
-            myWorkload: workloadSummary.myWorkload,
-            totalWorkload: workloadSummary.totalWorkload,
-            workloadDetails: workloadSummary.details,
+            totalWorkload: projectRow[4] || 0,
             budget: projectRow[6] !== undefined && projectRow[6] !== "" ? projectRow[6] : null,
           });
         }

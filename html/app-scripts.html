@@ -1486,7 +1486,7 @@
 
       container.innerHTML = projects
         .map((project) => {
-          const consumedCost = (project.totalWorkload / 8) * 50000;
+          const consumedCost = ((project.totalWorkload || 0) / 8) * 50000;
           const budget =
             project.budget !== null && project.budget !== undefined
               ? project.budget
@@ -1513,15 +1513,11 @@
             <div class="project-stats">
               <div class="stat-item">
                 <span>自分の工数:</span>
-                <span class="stat-value">${project.myWorkload.toFixed(
-                  1
-                )}h</span>
+                <span class="stat-value">-</span>
               </div>
               <div class="stat-item">
                 <span>総工数:</span>
-                <span class="stat-value">${project.totalWorkload.toFixed(
-                  1
-                )}h</span>
+                <span class="stat-value">${(project.totalWorkload || 0).toFixed(1)}h</span>
               </div>
               <hr />
               <div class="stat-item">
@@ -1595,22 +1591,17 @@
               `
               }
             </div>
-            <button class="accordion-toggle" onclick="window.timesApp.toggleAccordion('assigned-${
+            <button class="accordion-toggle" onclick="window.timesApp.loadProjectWorkloadDetails('${
               project.projectId
-            }')">
-              <span class="accordion-icon">📋</span>
-              工数詳細
-              <span class="accordion-arrow">▼</span>
+            }', '${window.timesApp.escapeForJS(project.name)}')">
+              <span class="accordion-icon">🔄</span>
+              読み込み
             </button>
           </div>
           <div class="accordion-content" id="accordion-assigned-${
             project.projectId
           }">
-            ${this.renderWorkloadDetails(
-              project.workloadDetails,
-              project.projectId,
-              project.name
-            )}
+            <div class="loading-text">読み込みボタンを押してください</div>
           </div>
         </div>
       `;
@@ -1828,7 +1819,12 @@
      * アコーディオンの開閉
      */
     toggleAccordion(projectId) {
-      const content = document.getElementById(`accordion-${projectId}`);
+      // 担当案件と全案件の両方のIDに対応
+      let content = document.getElementById(`accordion-assigned-${projectId}`);
+      if (!content) {
+        content = document.getElementById(`accordion-${projectId}`);
+      }
+
       const arrow = content.parentElement.querySelector(".accordion-arrow");
 
       if (content.classList.contains("open")) {
@@ -1847,9 +1843,16 @@
       if (!this.currentUser) return;
 
       try {
-        const accordionContent = document.getElementById(
-          `accordion-${projectId}`
+        // 担当案件と全案件の両方のIDに対応
+        let accordionContent = document.getElementById(
+          `accordion-assigned-${projectId}`
         );
+        if (!accordionContent) {
+          accordionContent = document.getElementById(
+            `accordion-${projectId}`
+          );
+        }
+
         const loadButton = event.target.closest(".accordion-toggle");
 
         accordionContent.innerHTML =
