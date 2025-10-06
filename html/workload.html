@@ -39,6 +39,10 @@
 <div class="card">
   <div class="card-header">
     <h3>✨ 新規案件作成</h3>
+    <a
+      href="https://docs.google.com/spreadsheets/d/REMOVED_SPREADSHEET_ID/edit?gid=2087473884#gid=2087473884"
+      >予算（受注額）の確認はこちら</a
+    >
   </div>
   <div class="card-content">
     <form id="projectForm" class="project-form">
@@ -161,11 +165,19 @@
           />
         </div>
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary" id="submitProjectEditBtn">
+          <button
+            type="submit"
+            class="btn btn-primary"
+            id="submitProjectEditBtn"
+          >
             <span class="btn-icon">💾</span>
             変更を保存
           </button>
-          <button type="button" class="btn btn-outline" id="cancelProjectEditBtn">
+          <button
+            type="button"
+            class="btn btn-outline"
+            id="cancelProjectEditBtn"
+          >
             <span class="btn-icon">🚫</span>
             キャンセル
           </button>
@@ -185,6 +197,26 @@
     <div class="modal-body">
       <form id="workloadForm">
         <div class="input-group">
+          <label class="checkbox-label">
+            <input
+              type="checkbox"
+              id="proxyInputCheckbox"
+              name="proxyInputCheckbox"
+            />
+            <span>👥 代理入力</span>
+          </label>
+        </div>
+        <div
+          class="input-group"
+          id="guestUserSelectGroup"
+          style="display: none"
+        >
+          <label for="guestUserSelect">🙋 ゲストユーザー選択</label>
+          <select id="guestUserSelect" name="guestUserSelect">
+            <option value="">ゲストユーザーを選択してください</option>
+          </select>
+        </div>
+        <div class="input-group">
           <label for="workloadDate">📅 日付</label>
           <input type="date" id="workloadDate" name="workloadDate" required />
         </div>
@@ -195,7 +227,7 @@
             id="workloadHours"
             name="workloadHours"
             min="0.5"
-            max="24"
+            max="500"
             step="0.5"
             placeholder="例: 3.5"
             required
@@ -547,6 +579,48 @@
     font-size: 0.9rem;
   }
 
+  /* チェックボックスのスタイル */
+  .checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-weight: 500;
+  }
+
+  .checkbox-label input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    cursor: pointer;
+  }
+
+  .checkbox-label span {
+    font-size: 1rem;
+  }
+
+  /* セレクトボックスのスタイル */
+  select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    background: white;
+    cursor: pointer;
+    transition: var(--transition-normal);
+  }
+
+  select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+  }
+
+  select:disabled {
+    background: var(--gray-100);
+    cursor: not-allowed;
+  }
+
   /* 案件編集関連のスタイル */
   .project-name-container {
     display: flex;
@@ -559,7 +633,6 @@
     margin: 0;
     flex: 1;
   }
-
 
   /* モーダルスタイル */
   .modal-overlay {

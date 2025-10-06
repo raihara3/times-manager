@@ -174,6 +174,49 @@ function getAllUsers(): {
 }
 
 /**
+ * ゲストユーザー一覧を取得
+ * @returns ゲストユーザー一覧（名前が「ゲスト」で始まるユーザー）
+ */
+function getGuestUsers(): {
+  success: boolean;
+  message: string;
+  data?: Array<{
+    employeeNumber: string;
+    name: string;
+  }>;
+} {
+  try {
+    console.log("getGuestUsers開始");
+
+    const allUsersResult = getAllUsers();
+    if (!allUsersResult.success || !allUsersResult.data) {
+      return {
+        success: false,
+        message: "ユーザー一覧の取得に失敗しました",
+      };
+    }
+
+    const guestUsers = allUsersResult.data.filter(user =>
+      user.name.startsWith("ゲスト")
+    );
+
+    console.log(`${guestUsers.length}件のゲストユーザーを取得`);
+
+    return {
+      success: true,
+      message: "ゲストユーザー一覧を取得しました",
+      data: guestUsers,
+    };
+  } catch (error) {
+    console.error("ゲストユーザー一覧取得エラー:", error);
+    return {
+      success: false,
+      message: "ゲストユーザー一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+
+/**
  * ユーザー登録
  * @param employeeNumber 社員番号
  * @param name 名前

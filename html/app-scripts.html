@@ -1981,6 +1981,21 @@
       this.currentProject = null;
       this.editingWorkload = null;
 
+      // 代理入力状態をリセット
+      const proxyInputCheckbox = document.getElementById("proxyInputCheckbox");
+      const guestUserSelectGroup = document.getElementById("guestUserSelectGroup");
+      const guestUserSelect = document.getElementById("guestUserSelect");
+
+      if (proxyInputCheckbox) {
+        proxyInputCheckbox.checked = false;
+      }
+      if (guestUserSelectGroup) {
+        guestUserSelectGroup.style.display = "none";
+      }
+      if (guestUserSelect) {
+        guestUserSelect.value = "";
+      }
+
       // ボタンのテキストを元に戻す
       const submitBtn = document.getElementById("submitWorkloadBtn");
       submitBtn.querySelector(".btn-text").textContent = "工数を記録";
@@ -2105,6 +2120,52 @@
     }
 
     /**
+     * 代理入力チェックボックスの切り替え処理
+     */
+    async handleProxyInputToggle(event) {
+      const isChecked = event.target.checked;
+      const guestUserSelectGroup = document.getElementById("guestUserSelectGroup");
+      const guestUserSelect = document.getElementById("guestUserSelect");
+
+      if (isChecked) {
+        // ゲストユーザー一覧を取得
+        try {
+          this.showLoading();
+          const result = await this.callGASFunction("getGuestUsers");
+
+          if (result.success && result.data) {
+            // プルダウンの選択肢をクリア
+            guestUserSelect.innerHTML = '<option value="">ゲストユーザーを選択してください</option>';
+
+            // ゲストユーザーを選択肢に追加
+            result.data.forEach(user => {
+              const option = document.createElement("option");
+              option.value = user.employeeNumber;
+              option.textContent = `${user.name} (${user.employeeNumber})`;
+              guestUserSelect.appendChild(option);
+            });
+
+            // プルダウンを表示
+            guestUserSelectGroup.style.display = "block";
+          } else {
+            this.showMessage("ゲストユーザーの取得に失敗しました", "error");
+            event.target.checked = false;
+          }
+        } catch (error) {
+          console.error("ゲストユーザー取得エラー:", error);
+          this.showMessage("ゲストユーザーの取得に失敗しました", "error");
+          event.target.checked = false;
+        } finally {
+          this.hideLoading();
+        }
+      } else {
+        // プルダウンを非表示
+        guestUserSelectGroup.style.display = "none";
+        guestUserSelect.value = "";
+      }
+    }
+
+    /**
      * 工数記録の処理
      */
     async handleWorkloadSubmission(event) {
@@ -2124,6 +2185,20 @@
         const hours = parseFloat(formData.get("workloadHours"));
         const memo = formData.get("workloadMemo") || "";
 
+        // 代理入力モードかチェック
+        const isProxyInput = document.getElementById("proxyInputCheckbox").checked;
+        const guestUserEmployeeNumber = formData.get("guestUserSelect");
+
+        // 代理入力の場合、ゲストユーザーが選択されているか確認
+        if (isProxyInput && !guestUserEmployeeNumber) {
+          this.showMessage("ゲストユーザーを選択してください", "warning");
+          this.hideLoading();
+          return;
+        }
+
+        // 使用する社員番号を決定
+        const employeeNumber = isProxyInput ? guestUserEmployeeNumber : this.currentUser.employeeNumber;
+
         let result;
 
         if (isEditMode) {
@@ -2132,7 +2207,7 @@
             "recordWorkload",
             this.editingWorkload.projectId,
             this.editingWorkload.projectName || "",
-            this.currentUser.employeeNumber,
+            employeeNumber,
             date,
             hours,
             memo
@@ -2143,7 +2218,7 @@
             "recordWorkload",
             this.currentProject.id,
             this.currentProject.name,
-            this.currentUser.employeeNumber,
+            employeeNumber,
             date,
             hours,
             memo
@@ -2434,6 +2509,14 @@
       if (projectForm) {
         projectForm.addEventListener("submit", (e) =>
           this.handleProjectCreation(e)
+        );
+      }
+
+      // 代理入力チェックボックスのイベントリスナー
+      const proxyInputCheckbox = document.getElementById("proxyInputCheckbox");
+      if (proxyInputCheckbox) {
+        proxyInputCheckbox.addEventListener("change", (e) =>
+          this.handleProxyInputToggle(e)
         );
       }
 
