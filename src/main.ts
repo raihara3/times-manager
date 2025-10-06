@@ -472,12 +472,16 @@ function stampAction(
       // 出勤打刻の場合は現在の日付を使用
       date = Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
     } else {
-      // 出勤打刻以外（退勤、中抜け開始、中抜け終了）の場合は直近の出勤打刻の日付を使用
-      const openRecord = getOpenRecord(employeeNumber);
-      if (openRecord && openRecord.date) {
-        date = openRecord.date;
+      // 出勤打刻以外（退勤、中抜け開始、中抜け終了）の場合
+      const currentHour = now.getHours();
+
+      if (currentHour < 5) {
+        // 朝5時より前の場合は前日の日付を使用
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        date = Utilities.formatDate(yesterday, "Asia/Tokyo", "yyyy-MM-dd");
       } else {
-        // オープンなレコードがない場合は現在の日付を使用（フォールバック）
+        // 5時以降の場合は現在の日付を使用
         date = Utilities.formatDate(now, "Asia/Tokyo", "yyyy-MM-dd");
       }
     }
