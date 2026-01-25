@@ -2500,10 +2500,27 @@
       }
     }
 
+    async initializeBudgetLink() {
+      const link = document.getElementById("budgetSpreadsheetLink");
+      if (!link) return;
+
+      try {
+        const url = await this.callGASFunction("getBudgetSpreadsheetUrl");
+        if (url) {
+          link.href = url;
+          link.style.display = "inline";
+        }
+      } catch (error) {
+        console.error("Failed to load budget spreadsheet URL:", error);
+      }
+    }
+
     /**
      * 工数管理セクションのセットアップ
      */
     setupWorkloadManagement() {
+      this.initializeBudgetLink();
+
       // 案件作成フォーム
       const projectForm = document.getElementById("projectForm");
       if (projectForm) {

@@ -19,6 +19,15 @@ const PROJECTS_SPREADSHEET_ID =
     "PROJECTS_SPREADSHEET_ID"
   ) || "";
 
+// 予算確認用スプレッドシートURLをプロパティストアから取得
+const BUDGET_SPREADSHEET_URL =
+  PropertiesService.getScriptProperties().getProperty("BUDGET_SPREADSHEET_URL") ||
+  "";
+
+function getBudgetSpreadsheetUrl(): string {
+  return BUDGET_SPREADSHEET_URL;
+}
+
 /**
  * Webアプリケーションのエントリポイント
  * シングルページアプリケーションのHTML
