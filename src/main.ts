@@ -342,7 +342,7 @@ function stampAction(
   employeeNumber: string,
   action: string,
   details = "",
-  specifiedDate?: string
+  specifiedDate?: string,
 ) {
   try {
     const sheetName = getCurrentSheetName();
@@ -411,7 +411,7 @@ function stampAction(
 function getAttendanceRecords(
   employeeNumber: string,
   year: number,
-  month: number
+  month: number,
 ): AttendanceRecord[] {
   try {
     const sheetName = `${year}${String(month).padStart(2, "0")}`;
@@ -651,9 +651,13 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
       a.date.localeCompare(b.date),
     );
 
-    // 累積の不足時間を保持する変数（正の数で保持）
-    let totalDeficit = 0;
+    // 中間計算用のマップ（日付 → { rawOvertime, dailyDeficit }）
+    const overtimeData = new Map<
+      string,
+      { rawOvertime: number; dailyDeficit: number }
+    >();
 
+    // 1パス目: 各日の rawOvertime と dailyDeficit を計算
     sortedDays.forEach((dayData) => {
       const hasAttendance = dayData.clockIn && dayData.clockOut;
       const hasSpecialStatus =
@@ -706,8 +710,7 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
           dayData.breakTime = breakHours.toFixed(1);
           dayData.workTime = effectiveWorkHours.toFixed(1);
 
-          // --- requestOvertime ロジックの再定義 ---
-          // 1. その日の素の残業時間を計算
+          // その日の素の残業時間を計算
           let rawOvertime = 0;
           if (dayData.holidayWork) {
             rawOvertime = effectiveWorkHours;
@@ -723,26 +726,84 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
             dailyDeficit = 8 - effectiveWorkHours;
           }
 
-          if (dailyDeficit > 0) {
-            // 不足がある日は requestOvertime は 0。不足を累積。
-            dayData.requestOvertime = "0";
-            totalDeficit += dailyDeficit;
-          } else {
-            // 残業がある場合、過去の不足分を差し引く
-            let adjustedOvertime = rawOvertime;
-            if (totalDeficit > 0) {
-              const payOff = Math.min(adjustedOvertime, totalDeficit);
-              adjustedOvertime -= payOff;
-              totalDeficit -= payOff;
-            }
-            dayData.requestOvertime = adjustedOvertime.toFixed(1);
-          }
-
           // 画面表示用の残業時間はそのまま
           dayData.overtime = rawOvertime.toFixed(1);
+
+          // 中間データを保存
+          overtimeData.set(dayData.date, { rawOvertime, dailyDeficit });
         } catch (e) {
           console.error(`${dayData.date} の時間計算エラー:`, e);
         }
+      }
+    });
+
+    // 調整後の残業時間を保持するマップ
+    const adjustedOvertimeMap = new Map<string, number>();
+    // 各日の不足がどれだけ補われたかを追跡
+    const coveredDeficitMap = new Map<string, number>();
+
+    // 2パス目（順方向）: 過去の不足を残業で補う
+    let forwardDeficit = 0;
+    const deficitDates: string[] = [];
+    sortedDays.forEach((dayData) => {
+      const data = overtimeData.get(dayData.date);
+      if (!data) return;
+
+      if (data.dailyDeficit > 0) {
+        forwardDeficit += data.dailyDeficit;
+        deficitDates.push(dayData.date);
+        adjustedOvertimeMap.set(dayData.date, 0);
+        coveredDeficitMap.set(dayData.date, 0);
+      } else {
+        let adjusted = data.rawOvertime;
+        if (forwardDeficit > 0) {
+          const payOff = Math.min(adjusted, forwardDeficit);
+          adjusted -= payOff;
+          forwardDeficit -= payOff;
+          // 補われた不足を記録（直近の不足から順に）
+          let remaining = payOff;
+          for (const date of deficitDates) {
+            const deficitData = overtimeData.get(date)!;
+            const alreadyCovered = coveredDeficitMap.get(date) || 0;
+            const uncovered = deficitData.dailyDeficit - alreadyCovered;
+            if (uncovered > 0 && remaining > 0) {
+              const cover = Math.min(uncovered, remaining);
+              coveredDeficitMap.set(date, alreadyCovered + cover);
+              remaining -= cover;
+            }
+          }
+        }
+        adjustedOvertimeMap.set(dayData.date, adjusted);
+      }
+    });
+
+    // 3パス目（逆方向）: 未来の不足のうち、順方向で補えなかった分を補う
+    let reverseDeficit = 0;
+    for (let i = sortedDays.length - 1; i >= 0; i--) {
+      const dayData = sortedDays[i];
+      const data = overtimeData.get(dayData.date);
+      if (!data) continue;
+
+      if (data.dailyDeficit > 0) {
+        // 順方向で補えなかった不足のみを累積
+        const alreadyCovered = coveredDeficitMap.get(dayData.date) || 0;
+        const uncovered = data.dailyDeficit - alreadyCovered;
+        reverseDeficit += uncovered;
+      } else {
+        const currentAdjusted = adjustedOvertimeMap.get(dayData.date) || 0;
+        if (reverseDeficit > 0 && currentAdjusted > 0) {
+          const payOff = Math.min(currentAdjusted, reverseDeficit);
+          adjustedOvertimeMap.set(dayData.date, currentAdjusted - payOff);
+          reverseDeficit -= payOff;
+        }
+      }
+    }
+
+    // 最終的な requestOvertime を設定
+    sortedDays.forEach((dayData) => {
+      const adjusted = adjustedOvertimeMap.get(dayData.date);
+      if (adjusted !== undefined) {
+        dayData.requestOvertime = adjusted.toFixed(1);
       }
     });
 
@@ -756,7 +817,7 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
 function getMonthlyMetrics(
   employeeNumber: string,
   year: number,
-  month: number
+  month: number,
 ) {
   try {
     console.log(
@@ -837,7 +898,7 @@ function updatePunchTime(
   sheetName: string,
   rowNumber: number,
   newTime: string,
-  comment: string
+  comment: string,
 ) {
   try {
     const sheet = getOrCreateAttendanceSheet(sheetName);
@@ -868,7 +929,7 @@ function updatePunchAction(
   sheetName: string,
   rowNumber: number,
   newAction: string,
-  comment: string
+  comment: string,
 ) {
   try {
     const sheet = getOrCreateAttendanceSheet(sheetName);
@@ -895,7 +956,7 @@ function updatePunchAction(
 function debugCalculations(
   employeeNumber: string,
   year: number,
-  month: number
+  month: number,
 ) {
   try {
     console.log(
@@ -1088,7 +1149,7 @@ function createProject(
   name: string,
   description: string,
   employeeNumber: string,
-  budget?: number
+  budget?: number,
 ) {
   try {
     const spreadsheet = getOrCreateProjectsSpreadsheet();
@@ -1255,7 +1316,7 @@ function getUserProjects(employeeNumber: string, includeClosed = false) {
 function getProjectWorkloadSummary(
   projectId: string,
   projectName: string,
-  employeeNumber: string
+  employeeNumber: string,
 ) {
   try {
     const spreadsheet = getOrCreateProjectsSpreadsheet();
@@ -1353,7 +1414,7 @@ function recordWorkload(
   employeeNumber: string,
   date: string,
   hours: number,
-  memo = ""
+  memo = "",
 ) {
   try {
     const workloadSheet = getOrCreateProjectTab(projectId, projectName);
@@ -1417,7 +1478,7 @@ function updateProject(
   projectId: string,
   name: string,
   description: string,
-  budget?: number
+  budget?: number,
 ) {
   try {
     console.log(
@@ -1628,8 +1689,7 @@ function getAllProjects(employeeNumber: string, includeClosed = false) {
         continue;
       }
       const isAssignedToUser = assignmentData.some(
-        (row) =>
-          row[1] === projectId && String(row[0]) === employeeNumber,
+        (row) => row[1] === projectId && String(row[0]) === employeeNumber,
       );
       projects.push({
         projectId,
