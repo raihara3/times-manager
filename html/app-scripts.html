@@ -240,7 +240,7 @@
         console.error("ログインエラー:", error);
         this.showMessage(
           "ログインに失敗しました。しばらく後に再試行してください。",
-          "error"
+          "error",
         );
       } finally {
         this.hideLoading();
@@ -269,7 +269,7 @@
         const result = await this.callGASFunction(
           "registerUser",
           employeeNumber,
-          name
+          name,
         );
 
         if (result.success) {
@@ -297,7 +297,7 @@
         console.error("登録エラー:", error);
         this.showMessage(
           "登録に失敗しました。しばらく後に再試行してください。",
-          "error"
+          "error",
         );
       } finally {
         this.hideLoading();
@@ -334,7 +334,7 @@
         } else {
           this.showMessage(
             "スプレッドシートの情報を取得できませんでした。",
-            "error"
+            "error",
           );
         }
       } catch (error) {
@@ -454,16 +454,16 @@
         } else {
           console.error(
             "メンバー情報取得失敗:",
-            result.message || "不明なエラー"
+            result.message || "不明なエラー",
           );
           this.renderMembersError(
-            result.message || "メンバー情報を取得できませんでした。"
+            result.message || "メンバー情報を取得できませんでした。",
           );
         }
       } catch (error) {
         console.error("メンバー一覧読み込みエラー:", error);
         this.renderMembersError(
-          "メンバー情報の読み込みに失敗しました: " + String(error)
+          "メンバー情報の読み込みに失敗しました: " + String(error),
         );
       }
     }
@@ -574,16 +574,16 @@
         } else {
           console.error(
             "ホットな案件取得失敗:",
-            result.message || "不明なエラー"
+            result.message || "不明なエラー",
           );
           this.renderHotProjectsError(
-            result.message || "ホットな案件を取得できませんでした。"
+            result.message || "ホットな案件を取得できませんでした。",
           );
         }
       } catch (error) {
         console.error("ホットな案件読み込みエラー:", error);
         this.renderHotProjectsError(
-          "ホットな案件の読み込みに失敗しました: " + String(error)
+          "ホットな案件の読み込みに失敗しました: " + String(error),
         );
       }
     }
@@ -683,7 +683,7 @@
           // 既存のイベントリスナーを削除
           button.replaceWith(button.cloneNode(true));
           const newButton = document.getElementById(
-            `btn${action.charAt(0).toUpperCase() + action.slice(1)}`
+            `btn${action.charAt(0).toUpperCase() + action.slice(1)}`,
           );
 
           newButton.addEventListener("click", async () => {
@@ -769,7 +769,7 @@
           this.currentUser.employeeNumber,
           selectedType,
           "",
-          selectedDate
+          selectedDate,
         );
 
         if (result.success) {
@@ -805,7 +805,7 @@
         const result = await this.callGASFunction(
           "stampAction",
           this.currentUser.employeeNumber,
-          action
+          action,
         );
 
         if (result.success) {
@@ -835,7 +835,7 @@
         // 現在の状態を取得
         const statusResult = await this.callGASFunction(
           "getCurrentStatus",
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
         this.updateStatusDisplay(statusResult.status);
         this.updateAttendanceButtons(statusResult.status);
@@ -850,7 +850,7 @@
           "getMonthlyMetrics",
           this.currentUser.employeeNumber,
           year,
-          month
+          month,
         );
         this.updateMetricsDisplay(metrics);
 
@@ -865,7 +865,7 @@
               "getDailySummary",
               this.currentUser.employeeNumber,
               this.currentCalendarYear,
-              this.currentCalendarMonth
+              this.currentCalendarMonth,
             );
             this.renderCalendar(summary);
 
@@ -873,7 +873,7 @@
               "getAttendanceRecords",
               this.currentUser.employeeNumber,
               this.currentCalendarYear,
-              this.currentCalendarMonth
+              this.currentCalendarMonth,
             );
             this.renderDetails(records);
           } catch (error) {
@@ -1060,7 +1060,7 @@
           "getDailySummary",
           this.currentUser.employeeNumber,
           this.currentCalendarYear,
-          this.currentCalendarMonth
+          this.currentCalendarMonth,
         );
         this.renderCalendar(summary);
 
@@ -1069,7 +1069,7 @@
           "getAttendanceRecords",
           this.currentUser.employeeNumber,
           this.currentCalendarYear,
-          this.currentCalendarMonth
+          this.currentCalendarMonth,
         );
         this.renderDetails(records);
 
@@ -1078,7 +1078,7 @@
           "getMonthlyMetrics",
           this.currentUser.employeeNumber,
           this.currentCalendarYear,
-          this.currentCalendarMonth
+          this.currentCalendarMonth,
         );
         this.updateMetricsDisplay(metrics);
 
@@ -1107,9 +1107,8 @@
               <th>中抜け(h)</th>
               <th>勤務時間(h)</th>
               <th>残業(h)</th>
-              <th>半休</th>
-              <th>全休</th>
-              <th>休日出勤</th>
+              <th>休日</th>
+              <th>残業入力</th>
             </tr>
           </thead>
           <tbody>
@@ -1127,19 +1126,14 @@
               <td class="overtime-cell">${item.overtime || "-"}</td>
               <td>${
                 item.halfDay
-                  ? '<span class="special-day-indicator">◯</span>'
-                  : ""
+                  ? '<span class="special-day-indicator">半休</span>'
+                  : item.fullDay
+                    ? '<span class="special-day-indicator">全休</span>'
+                    : item.holidayWork
+                      ? '<span class="special-day-indicator">休日出勤</span>'
+                      : ""
               }</td>
-              <td>${
-                item.fullDay
-                  ? '<span class="special-day-indicator">◯</span>'
-                  : ""
-              }</td>
-              <td>${
-                item.holidayWork
-                  ? '<span class="special-day-indicator">◯</span>'
-                  : ""
-              }</td>
+              <td class="overtime-cell">${item.requestOvertime}</td>
             </tr>
           `;
         });
@@ -1174,6 +1168,7 @@
               <th>日付</th>
               <th>打刻内容</th>
               <th>時刻</th>
+              <th>メモ</th>
               <th>編集</th>
             </tr>
           </thead>
@@ -1187,7 +1182,7 @@
           // 打刻系のアクションのみ編集可能
           if (
             ["clockIn", "clockOut", "breakStart", "breakEnd"].includes(
-              record.action
+              record.action,
             )
           ) {
             editButtons = `
@@ -1206,6 +1201,7 @@
               <td class="date-cell">${record.date}</td>
               <td>${this.getActionLabel(record.action)}</td>
               <td class="time-cell">${record.timestamp}</td>
+              <td class="time-cell">${record.details.replace(/\n/g, "<br/>")}</td>
               <td class="edit-cell">${editButtons}</td>
             </tr>
           `;
@@ -1291,7 +1287,7 @@
         .map((action) => `${action} (${actionLabels[action]})`)
         .join("\n");
       const newAction = prompt(
-        `新しい打刻タイプを入力してください:\n\n${options}`
+        `新しい打刻タイプを入力してください:\n\n${options}`,
       );
 
       if (!newAction) return;
@@ -1306,14 +1302,16 @@
 
       try {
         const sheetName = `${this.currentCalendarYear}${String(
-          this.currentCalendarMonth
+          this.currentCalendarMonth,
         ).padStart(2, "0")}`;
+        const date = new Date();
+        const updateDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()}`;
         const result = await this.callGASFunction(
           "updatePunchAction",
           sheetName,
           rowNumber,
           actionKey,
-          ""
+          updateDate,
         );
 
         if (result.success) {
@@ -1334,7 +1332,7 @@
      */
     async editTime(rowNumber) {
       const newTime = prompt(
-        "新しい時刻を「yyyy-MM-dd HH:mm:ss」の形式で入力してください。\n例: 2024-09-27 09:00:00"
+        "新しい時刻を「yyyy-MM-dd HH:mm:ss」の形式で入力してください。\n例: 2024-09-27 09:00:00",
       );
 
       if (!newTime) return;
@@ -1349,14 +1347,16 @@
 
       try {
         const sheetName = `${this.currentCalendarYear}${String(
-          this.currentCalendarMonth
+          this.currentCalendarMonth,
         ).padStart(2, "0")}`;
+        const date = new Date();
+        const updateDate = `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${date.getMinutes()}`;
         const result = await this.callGASFunction(
           "updatePunchTime",
           sheetName,
           rowNumber,
           newTime,
-          ""
+          updateDate,
         );
 
         if (result.success) {
@@ -1387,12 +1387,12 @@
         // 担当案件一覧を取得（オープン案件のみ）
         console.log(
           "getUserProjects呼び出し開始:",
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
         const assignedProjectsResult = await this.callGASFunction(
           "getUserProjects",
           this.currentUser.employeeNumber,
-          false
+          false,
         );
         console.log("getUserProjects結果:", assignedProjectsResult);
 
@@ -1442,12 +1442,12 @@
         // 全案件一覧を取得
         console.log(
           "getAllProjects呼び出し開始:",
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
         const projectsResult = await this.callGASFunction(
           "getAllProjects",
           this.currentUser.employeeNumber,
-          includeClosed
+          includeClosed,
         );
         console.log("getAllProjects結果:", projectsResult);
 
@@ -1471,7 +1471,7 @@
       const container = document.getElementById("assignedProjectsList");
       if (!container) {
         console.error(
-          "renderAssignedProjectsList: assignedProjectsListコンテナが見つかりません"
+          "renderAssignedProjectsList: assignedProjectsListコンテナが見つかりません",
         );
         return;
       }
@@ -1525,8 +1525,8 @@
                 <span class="stat-value ${
                   budget === null ? "budget-unset" : ""
                 }">${
-            budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
-          }</span>
+                  budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
+                }</span>
               </div>
               <div class="stat-item">
                 <span>消費額:</span>
@@ -1538,15 +1538,17 @@
                   budget === null
                     ? "budget-unset"
                     : remaining < 0
-                    ? "over-budget"
-                    : ""
+                      ? "over-budget"
+                      : ""
                 }">${
-            budget !== null ? "¥" + remaining.toLocaleString() : "予算未設定"
-          }</span>
+                  budget !== null
+                    ? "¥" + remaining.toLocaleString()
+                    : "予算未設定"
+                }</span>
               </div>
               <span class="status-badge ${project.status}">${
-            project.status === "open" ? "オープン" : "クローズ"
-          }</span>
+                project.status === "open" ? "オープン" : "クローズ"
+              }</span>
             </div>
           </div>
           <div class="project-actions">
@@ -1566,12 +1568,12 @@
               <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${
                 project.projectId
               }', '${window.timesApp.escapeForJS(
-            project.name
-          )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
-            project.budget !== null && project.budget !== undefined
-              ? project.budget
-              : "null"
-          })">
+                project.name,
+              )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
+                project.budget !== null && project.budget !== undefined
+                  ? project.budget
+                  : "null"
+              })">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1616,7 +1618,7 @@
       const container = document.getElementById("projectsList");
       if (!container) {
         console.error(
-          "renderProjectsList: projectsListコンテナが見つかりません"
+          "renderProjectsList: projectsListコンテナが見つかりません",
         );
         return;
       }
@@ -1674,8 +1676,8 @@
                 <span class="stat-value ${
                   budget === null ? "budget-unset" : ""
                 }">${
-            budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
-          }</span>
+                  budget !== null ? "¥" + budget.toLocaleString() : "予算未設定"
+                }</span>
               </div>
               <div class="stat-item">
                 <span>消費額:</span>
@@ -1687,15 +1689,17 @@
                   budget === null
                     ? "budget-unset"
                     : remaining < 0
-                    ? "over-budget"
-                    : ""
+                      ? "over-budget"
+                      : ""
                 }">${
-            budget !== null ? "¥" + remaining.toLocaleString() : "予算未設定"
-          }</span>
+                  budget !== null
+                    ? "¥" + remaining.toLocaleString()
+                    : "予算未設定"
+                }</span>
               </div>
               <span class="status-badge ${project.status}">${
-            project.status === "open" ? "オープン" : "クローズ"
-          }</span>
+                project.status === "open" ? "オープン" : "クローズ"
+              }</span>
             </div>
           </div>`;
         })
@@ -1724,12 +1728,12 @@
               <button class="btn btn-outline btn-sm btn-edit-gray" onclick="window.timesApp.editProject('${
                 project.projectId
               }', '${window.timesApp.escapeForJS(
-              project.name
-            )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
-              project.budget !== null && project.budget !== undefined
-                ? project.budget
-                : "null"
-            })">
+                project.name,
+              )}', '${window.timesApp.escapeForJS(project.description || "")}', ${
+                project.budget !== null && project.budget !== undefined
+                  ? project.budget
+                  : "null"
+              })">
                 <span class="btn-icon">✏️</span>
                 編集
               </button>
@@ -1781,8 +1785,8 @@
               .map(
                 (detail) => `
               <tr data-workload-id="${detail.id}" data-project-id="${
-                  detail.projectId
-                }">
+                detail.projectId
+              }">
                 <td class="date-cell">${detail.date}</td>
                 <td>${detail.employeeName || detail.employeeNumber}</td>
                 <td class="hours-cell">${detail.hours}h</td>
@@ -1791,14 +1795,14 @@
                   <button class="btn btn-sm btn-edit" onclick="window.timesApp.editWorkload('${
                     detail.id
                   }', '${projectId}', '${projectName}', '${detail.date}', ${
-                  detail.hours
-                }, '${(detail.memo || "").replace(/'/g, "\\'")}')">
+                    detail.hours
+                  }, '${(detail.memo || "").replace(/'/g, "\\'")}')">
                     <span class="btn-icon">✏️</span>
                     編集
                   </button>
                 </td>
               </tr>
-            `
+            `,
               )
               .join("")}
           </tbody>
@@ -1836,12 +1840,10 @@
       try {
         // 担当案件と全案件の両方のIDに対応
         let accordionContent = document.getElementById(
-          `accordion-assigned-${projectId}`
+          `accordion-assigned-${projectId}`,
         );
         if (!accordionContent) {
-          accordionContent = document.getElementById(
-            `accordion-${projectId}`
-          );
+          accordionContent = document.getElementById(`accordion-${projectId}`);
         }
 
         const loadButton = event.target.closest(".accordion-toggle");
@@ -1849,7 +1851,8 @@
         // ローディング表示
         loadButton.disabled = true;
         const originalButtonHTML = loadButton.innerHTML;
-        loadButton.innerHTML = '<span class="accordion-icon">⏳</span> 読み込み中...';
+        loadButton.innerHTML =
+          '<span class="accordion-icon">⏳</span> 読み込み中...';
         accordionContent.innerHTML =
           '<div class="loading-text">工数詳細を読み込んでいます...</div>';
 
@@ -1857,7 +1860,7 @@
           "getProjectWorkloadSummary",
           projectId,
           projectName,
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
 
         const myWorkload = workloadSummary.myWorkload || 0;
@@ -1866,7 +1869,7 @@
 
         const projectCard = loadButton.closest(".project-card");
         const statItems = projectCard.querySelectorAll(
-          ".stat-item .stat-value"
+          ".stat-item .stat-value",
         );
         if (statItems.length >= 2) {
           statItems[0].textContent = `${myWorkload.toFixed(1)}h`;
@@ -1876,13 +1879,14 @@
         accordionContent.innerHTML = this.renderWorkloadDetails(
           workloadDetails,
           projectId,
-          projectName
+          projectName,
         );
 
         // ボタンを元に戻す
         loadButton.disabled = false;
         loadButton.onclick = () => this.toggleAccordion(projectId);
-        loadButton.innerHTML = '<span class="accordion-icon">📋</span> 工数詳細 <span class="accordion-arrow">▼</span>';
+        loadButton.innerHTML =
+          '<span class="accordion-icon">📋</span> 工数詳細 <span class="accordion-arrow">▼</span>';
 
         accordionContent.classList.add("open");
       } catch (error) {
@@ -1892,16 +1896,15 @@
         const loadButton = event.target.closest(".accordion-toggle");
         if (loadButton) {
           loadButton.disabled = false;
-          loadButton.innerHTML = '<span class="accordion-icon">📋</span> 読み込み <span class="accordion-arrow"></span>';
+          loadButton.innerHTML =
+            '<span class="accordion-icon">📋</span> 読み込み <span class="accordion-arrow"></span>';
         }
 
         let accordionContent = document.getElementById(
-          `accordion-assigned-${projectId}`
+          `accordion-assigned-${projectId}`,
         );
         if (!accordionContent) {
-          accordionContent = document.getElementById(
-            `accordion-${projectId}`
-          );
+          accordionContent = document.getElementById(`accordion-${projectId}`);
         }
         if (accordionContent) {
           accordionContent.innerHTML =
@@ -1935,7 +1938,7 @@
           name,
           description,
           this.currentUser.employeeNumber,
-          budget
+          budget,
         );
 
         if (result.success) {
@@ -1964,9 +1967,8 @@
       document.getElementById("workloadDate").value = today;
 
       // モーダルタイトルを設定
-      document.getElementById(
-        "modalTitle"
-      ).textContent = `⏱️ ${projectName} - 工数入力`;
+      document.getElementById("modalTitle").textContent =
+        `⏱️ ${projectName} - 工数入力`;
 
       // モーダルを表示
       document.getElementById("workloadModal").style.display = "flex";
@@ -1983,7 +1985,9 @@
 
       // 代理入力状態をリセット
       const proxyInputCheckbox = document.getElementById("proxyInputCheckbox");
-      const guestUserSelectGroup = document.getElementById("guestUserSelectGroup");
+      const guestUserSelectGroup = document.getElementById(
+        "guestUserSelectGroup",
+      );
       const guestUserSelect = document.getElementById("guestUserSelect");
 
       if (proxyInputCheckbox) {
@@ -2100,7 +2104,7 @@
           this.editingProject.id,
           name,
           description,
-          budget
+          budget,
         );
 
         if (result.success) {
@@ -2124,7 +2128,9 @@
      */
     async handleProxyInputToggle(event) {
       const isChecked = event.target.checked;
-      const guestUserSelectGroup = document.getElementById("guestUserSelectGroup");
+      const guestUserSelectGroup = document.getElementById(
+        "guestUserSelectGroup",
+      );
       const guestUserSelect = document.getElementById("guestUserSelect");
 
       if (isChecked) {
@@ -2135,10 +2141,11 @@
 
           if (result.success && result.data) {
             // プルダウンの選択肢をクリア
-            guestUserSelect.innerHTML = '<option value="">ゲストユーザーを選択してください</option>';
+            guestUserSelect.innerHTML =
+              '<option value="">ゲストユーザーを選択してください</option>';
 
             // ゲストユーザーを選択肢に追加
-            result.data.forEach(user => {
+            result.data.forEach((user) => {
               const option = document.createElement("option");
               option.value = user.employeeNumber;
               option.textContent = `${user.name} (${user.employeeNumber})`;
@@ -2186,7 +2193,8 @@
         const memo = formData.get("workloadMemo") || "";
 
         // 代理入力モードかチェック
-        const isProxyInput = document.getElementById("proxyInputCheckbox").checked;
+        const isProxyInput =
+          document.getElementById("proxyInputCheckbox").checked;
         const guestUserEmployeeNumber = formData.get("guestUserSelect");
 
         // 代理入力の場合、ゲストユーザーが選択されているか確認
@@ -2197,7 +2205,9 @@
         }
 
         // 使用する社員番号を決定
-        const employeeNumber = isProxyInput ? guestUserEmployeeNumber : this.currentUser.employeeNumber;
+        const employeeNumber = isProxyInput
+          ? guestUserEmployeeNumber
+          : this.currentUser.employeeNumber;
 
         let result;
 
@@ -2210,7 +2220,7 @@
             employeeNumber,
             date,
             hours,
-            memo
+            memo,
           );
         } else {
           // 新規作成モード
@@ -2221,14 +2231,14 @@
             employeeNumber,
             date,
             hours,
-            memo
+            memo,
           );
         }
 
         if (result.success) {
           this.showMessage(
             isEditMode ? "工数を更新しました" : "工数を記録しました",
-            "success"
+            "success",
           );
           this.closeWorkloadModal();
           this.loadWorkloadData();
@@ -2241,7 +2251,7 @@
           isEditMode
             ? "工数の更新に失敗しました。"
             : "工数の記録に失敗しました。",
-          "error"
+          "error",
         );
       } finally {
         this.hideLoading();
@@ -2259,7 +2269,7 @@
         const result = await this.callGASFunction(
           "updateProjectStatus",
           projectId,
-          "close"
+          "close",
         );
 
         if (result.success) {
@@ -2285,7 +2295,7 @@
         const result = await this.callGASFunction(
           "updateProjectStatus",
           projectId,
-          "open"
+          "open",
         );
 
         if (result.success) {
@@ -2323,7 +2333,7 @@
           const projectsResult = await this.callGASFunction(
             "getAllProjects",
             this.currentUser.employeeNumber,
-            this.showClosedAllProjects
+            this.showClosedAllProjects,
           );
           this.renderProjectsList(projectsResult.data || []);
         }
@@ -2353,12 +2363,12 @@
         const assignedProjectsResult = await this.callGASFunction(
           "getUserProjects",
           this.currentUser.employeeNumber,
-          this.showClosedAssignedProjects
+          this.showClosedAssignedProjects,
         );
         this.renderAssignedProjectsList(assignedProjectsResult.data || []);
 
         this.updateAssignedClosedProjectsButton(
-          this.showClosedAssignedProjects
+          this.showClosedAssignedProjects,
         );
       } catch (error) {
         console.error("担当案件クローズ表示切り替えエラー:", error);
@@ -2379,7 +2389,7 @@
         const result = await this.callGASFunction(
           "assignProjectToUser",
           projectId,
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
 
         if (result.success) {
@@ -2389,7 +2399,7 @@
           const assignedResult = await this.callGASFunction(
             "getUserProjects",
             this.currentUser.employeeNumber,
-            false
+            false,
           );
           this.renderAssignedProjectsList(assignedResult.data || []);
 
@@ -2402,7 +2412,7 @@
             const projectsResult = await this.callGASFunction(
               "getAllProjects",
               this.currentUser.employeeNumber,
-              this.showClosedAllProjects
+              this.showClosedAllProjects,
             );
             this.renderProjectsList(projectsResult.data || []);
           }
@@ -2430,7 +2440,7 @@
         const result = await this.callGASFunction(
           "unassignProjectFromUser",
           projectId,
-          this.currentUser.employeeNumber
+          this.currentUser.employeeNumber,
         );
 
         if (result.success) {
@@ -2440,7 +2450,7 @@
           const assignedResult = await this.callGASFunction(
             "getUserProjects",
             this.currentUser.employeeNumber,
-            false
+            false,
           );
           this.renderAssignedProjectsList(assignedResult.data || []);
 
@@ -2453,7 +2463,7 @@
             const projectsResult = await this.callGASFunction(
               "getAllProjects",
               this.currentUser.employeeNumber,
-              this.showClosedAllProjects
+              this.showClosedAllProjects,
             );
             this.renderProjectsList(projectsResult.data || []);
           }
@@ -2500,32 +2510,15 @@
       }
     }
 
-    async initializeBudgetLink() {
-      const link = document.getElementById("budgetSpreadsheetLink");
-      if (!link) return;
-
-      try {
-        const url = await this.callGASFunction("getBudgetSpreadsheetUrl");
-        if (url) {
-          link.href = url;
-          link.style.display = "inline";
-        }
-      } catch (error) {
-        console.error("Failed to load budget spreadsheet URL:", error);
-      }
-    }
-
     /**
      * 工数管理セクションのセットアップ
      */
     setupWorkloadManagement() {
-      this.initializeBudgetLink();
-
       // 案件作成フォーム
       const projectForm = document.getElementById("projectForm");
       if (projectForm) {
         projectForm.addEventListener("submit", (e) =>
-          this.handleProjectCreation(e)
+          this.handleProjectCreation(e),
         );
       }
 
@@ -2533,7 +2526,7 @@
       const proxyInputCheckbox = document.getElementById("proxyInputCheckbox");
       if (proxyInputCheckbox) {
         proxyInputCheckbox.addEventListener("change", (e) =>
-          this.handleProxyInputToggle(e)
+          this.handleProxyInputToggle(e),
         );
       }
 
@@ -2541,7 +2534,7 @@
       const workloadForm = document.getElementById("workloadForm");
       if (workloadForm) {
         workloadForm.addEventListener("submit", (e) =>
-          this.handleWorkloadSubmission(e)
+          this.handleWorkloadSubmission(e),
         );
       }
 
@@ -2549,7 +2542,7 @@
       const projectEditForm = document.getElementById("projectEditForm");
       if (projectEditForm) {
         projectEditForm.addEventListener("submit", (e) =>
-          this.handleProjectEditSubmission(e)
+          this.handleProjectEditSubmission(e),
         );
       }
 
@@ -2557,7 +2550,7 @@
       const closeModalBtn = document.getElementById("closeWorkloadModal");
       if (closeModalBtn) {
         closeModalBtn.addEventListener("click", () =>
-          this.closeWorkloadModal()
+          this.closeWorkloadModal(),
         );
       }
 
@@ -2568,20 +2561,20 @@
 
       // 案件編集モーダル制御
       const closeProjectEditModalBtn = document.getElementById(
-        "closeProjectEditModal"
+        "closeProjectEditModal",
       );
       if (closeProjectEditModalBtn) {
         closeProjectEditModalBtn.addEventListener("click", () =>
-          this.closeProjectEditModal()
+          this.closeProjectEditModal(),
         );
       }
 
       const cancelProjectEditBtn = document.getElementById(
-        "cancelProjectEditBtn"
+        "cancelProjectEditBtn",
       );
       if (cancelProjectEditBtn) {
         cancelProjectEditBtn.addEventListener("click", () =>
-          this.closeProjectEditModal()
+          this.closeProjectEditModal(),
         );
       }
 
@@ -2589,7 +2582,7 @@
       const loadAllProjectsBtn = document.getElementById("loadAllProjectsBtn");
       if (loadAllProjectsBtn) {
         loadAllProjectsBtn.addEventListener("click", () =>
-          this.loadAllProjects(false)
+          this.loadAllProjects(false),
         );
       }
 
@@ -2597,32 +2590,32 @@
       const showClosedBtn = document.getElementById("showClosedBtn");
       if (showClosedBtn) {
         showClosedBtn.addEventListener("click", () =>
-          this.toggleClosedProjects()
+          this.toggleClosedProjects(),
         );
       }
 
       const hideClosedBtn = document.getElementById("hideClosedBtn");
       if (hideClosedBtn) {
         hideClosedBtn.addEventListener("click", () =>
-          this.toggleClosedProjects()
+          this.toggleClosedProjects(),
         );
       }
 
       // クローズ案件表示ボタン（担当案件一覧用）
       const showAssignedClosedBtn = document.getElementById(
-        "showAssignedClosedBtn"
+        "showAssignedClosedBtn",
       );
       if (showAssignedClosedBtn) {
         showAssignedClosedBtn.addEventListener("click", () =>
-          this.toggleAssignedClosedProjects()
+          this.toggleAssignedClosedProjects(),
         );
       }
       const hideAssignedClosedBtn = document.getElementById(
-        "hideAssignedClosedBtn"
+        "hideAssignedClosedBtn",
       );
       if (hideAssignedClosedBtn) {
         hideAssignedClosedBtn.addEventListener("click", () =>
-          this.toggleAssignedClosedProjects()
+          this.toggleAssignedClosedProjects(),
         );
       }
 
@@ -2652,10 +2645,10 @@
     updateMetricsDisplay(metrics) {
       const workingDaysElement = document.getElementById("workingDaysValue");
       const surplusDeficitElement = document.getElementById(
-        "surplusDeficitValue"
+        "surplusDeficitValue",
       );
       const averageOvertimeElement = document.getElementById(
-        "averageOvertimeValue"
+        "averageOvertimeValue",
       );
 
       if (workingDaysElement) {
@@ -2832,10 +2825,10 @@
 
         const timeout = setTimeout(() => {
           console.error(
-            `タイムアウト: ${functionName} の実行に30秒以上かかりました`
+            `タイムアウト: ${functionName} の実行に30秒以上かかりました`,
           );
           reject(
-            new Error(`関数 ${functionName} の実行がタイムアウトしました`)
+            new Error(`関数 ${functionName} の実行がタイムアウトしました`),
           );
         }, 30000);
 
@@ -2884,7 +2877,7 @@
     if (window.timesApp) {
       window.timesApp.showMessage(
         "アプリケーションでエラーが発生しました。ページを再読み込みしてください。",
-        "error"
+        "error",
       );
     }
   });
@@ -2894,7 +2887,7 @@
     if (window.timesApp) {
       window.timesApp.showMessage(
         "インターネット接続が切断されました。機能が制限される可能性があります。",
-        "warning"
+        "warning",
       );
     }
   });
@@ -2903,7 +2896,7 @@
     if (window.timesApp) {
       window.timesApp.showMessage(
         "インターネット接続が復旧しました。",
-        "success"
+        "success",
       );
     }
   });
