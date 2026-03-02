@@ -863,8 +863,10 @@ function getMonthlyMetrics(
       };
     }
     const workingDays = summary.filter((day) => {
-      const hasActualWork = (day.clockIn && day.clockIn !== "") || day.halfDay;
-      return hasActualWork && !day.holidayWork && !day.fullDay;
+      const hasCompletedWork =
+        (day.clockIn && day.clockIn !== "" && day.clockOut && day.clockOut !== "") ||
+        day.halfDay;
+      return hasCompletedWork && !day.holidayWork && !day.fullDay;
     }).length;
     console.log(`出勤日数: ${workingDays}`);
     console.log("=== 詳細計算検証 ===");
@@ -1777,13 +1779,8 @@ function getHotProjects() {
       if (status === "close") {
         continue;
       }
-      if (totalWorkload >= 50) {
-        let emoji = "";
-        if (totalWorkload >= 100) {
-          emoji = "☠️";
-        } else if (totalWorkload >= 50) {
-          emoji = "🔥";
-        }
+      if (totalWorkload >= 100) {
+        const emoji = "☠️";
         hotProjects.push({
           projectId,
           name,

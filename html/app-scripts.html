@@ -505,10 +505,12 @@
         ) {
           // 今月の更新がない場合
           emoji = "";
-        } else if (overtime >= 30 && overtime < 45) {
+        } else if (overtime >= 15 && overtime < 20) {
+          emoji = "🚒";
+        } else if (overtime >= 20 && overtime < 29) {
           emoji = "🔥";
-        } else if (overtime >= 45) {
-          emoji = "💀";
+        } else if (overtime >= 29) {
+          emoji = "☠️";
         }
 
         html += `
