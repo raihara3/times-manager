@@ -1108,7 +1108,7 @@
               <th>勤務時間(h)</th>
               <th>残業(h)</th>
               <th>休日</th>
-              <th>残業入力</th>
+              <th>勤怠入力</th>
             </tr>
           </thead>
           <tbody>
@@ -1133,7 +1133,7 @@
                       ? '<span class="special-day-indicator">休日出勤</span>'
                       : ""
               }</td>
-              <td class="overtime-cell">${item.requestOvertime}</td>
+              <td class="overtime-cell">${item.requestOvertime || "-"}</td>
             </tr>
           `;
         });

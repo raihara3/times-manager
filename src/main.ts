@@ -552,6 +552,35 @@ function getCurrentStatus(employeeNumber: string) {
     return { status: "エラー" };
   }
 }
+function formatOvertimeAsSchedule(overtimeHours: number): string {
+  const standardStart = 10;
+  const standardEnd = 19;
+  const maxEveningEnd = 22;
+  const maxEveningOvertime = maxEveningEnd - standardEnd;
+
+  let startHour = standardStart;
+  let endHour = standardEnd;
+
+  if (overtimeHours <= maxEveningOvertime) {
+    endHour = standardEnd + overtimeHours;
+  } else {
+    endHour = maxEveningEnd;
+    startHour = Math.max(0, standardStart - (overtimeHours - maxEveningOvertime));
+  }
+
+  const formatTime = (hours: number): string => {
+    let h = Math.floor(hours);
+    let m = Math.round((hours - h) * 60);
+    if (m === 60) {
+      h += 1;
+      m = 0;
+    }
+    return `${h}:${m.toString().padStart(2, "0")}`;
+  };
+
+  return `${formatTime(startHour)}-${formatTime(endHour)}`;
+}
+
 function getDailySummary(employeeNumber: string, year: number, month: number) {
   try {
     const sheetName = `${year}${String(month).padStart(2, "0")}`;
@@ -608,7 +637,7 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
           breakTime: "0",
           workTime: "0",
           overtime: "0",
-          requestOvertime: "0",
+          requestOvertime: "",
           halfDay: false,
           fullDay: false,
           holidayWork: false,
@@ -803,7 +832,7 @@ function getDailySummary(employeeNumber: string, year: number, month: number) {
     sortedDays.forEach((dayData) => {
       const adjusted = adjustedOvertimeMap.get(dayData.date);
       if (adjusted !== undefined) {
-        dayData.requestOvertime = adjusted.toFixed(1);
+        dayData.requestOvertime = `${formatOvertimeAsSchedule(adjusted)} (${adjusted.toFixed(1)}h)`;
       }
     });
 
