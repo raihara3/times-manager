@@ -26,3 +26,4 @@ dist/
 npm-debug.log*
 
 plan/
+.claude/settings.local.json
