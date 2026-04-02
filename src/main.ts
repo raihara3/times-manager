@@ -158,9 +158,44 @@ function getGuestUsers() {
     };
   }
 }
-function registerUser(employeeNumber: string, name: string) {
-  if (!employeeNumber || !name) {
-    return { success: false, message: "社員番号と名前を入力してください。" };
+function getJobTypes() {
+  try {
+    const spreadsheet = getOrCreateSpreadsheet();
+    const sheet = spreadsheet.getSheetByName("job");
+    if (!sheet) {
+      return { success: false, message: "職種シートが見つかりません。" };
+    }
+    const dataRange = sheet.getDataRange();
+    const values = dataRange.getValues();
+    const jobTypes = [];
+    for (let i = 1; i < values.length; i++) {
+      const row = values[i];
+      if (row[0] !== "" && row[1] !== "") {
+        jobTypes.push({
+          id: row[0].toString(),
+          name: row[1].toString(),
+        });
+      }
+    }
+    return {
+      success: true,
+      message: "職種一覧を取得しました",
+      data: jobTypes,
+    };
+  } catch (error) {
+    console.error("職種一覧取得エラー:", error);
+    return {
+      success: false,
+      message: "職種一覧の取得に失敗しました: " + String(error),
+    };
+  }
+}
+function registerUser(employeeNumber: string, name: string, jobId: string) {
+  if (!employeeNumber || !name || !jobId) {
+    return {
+      success: false,
+      message: "社員番号、名前、職種を入力してください。",
+    };
   }
   const spreadsheet = getOrCreateSpreadsheet();
   const sheet = spreadsheet.getSheetByName("users");
@@ -178,7 +213,7 @@ function registerUser(employeeNumber: string, name: string) {
     }
   }
   const now = new Date();
-  sheet.appendRow([employeeNumber, name, now]);
+  sheet.appendRow([employeeNumber, name, now, "", "", jobId]);
   return {
     success: true,
     message: `ようこそ、${name}さん！登録が完了しました。`,

@@ -256,9 +256,13 @@
         .getElementById("regEmployeeNumber")
         .value.trim();
       const name = document.getElementById("regName").value.trim();
+      const jobId = document.getElementById("regJobType").value;
 
-      if (!employeeNumber || !name) {
-        this.showMessage("社員番号と名前を入力してください。", "error");
+      if (!employeeNumber || !name || !jobId) {
+        this.showMessage(
+          "社員番号、名前、職種を入力してください。",
+          "error",
+        );
         return;
       }
 
@@ -270,6 +274,7 @@
           "registerUser",
           employeeNumber,
           name,
+          jobId,
         );
 
         if (result.success) {
@@ -278,6 +283,7 @@
           // フォームをクリア
           document.getElementById("regEmployeeNumber").value = "";
           document.getElementById("regName").value = "";
+          document.getElementById("regJobType").value = "";
 
           // ログインフォームに切り替え
           setTimeout(() => {
@@ -348,7 +354,7 @@
     /**
      * 登録フォームを表示
      */
-    showRegisterForm() {
+    async showRegisterForm() {
       const loginSection = document.getElementById("loginSection");
       const registerSection = document.getElementById("registerSection");
 
@@ -358,6 +364,27 @@
       }
 
       this.hideMessage();
+      await this.loadJobTypes();
+    }
+
+    async loadJobTypes() {
+      const select = document.getElementById("regJobType");
+      if (!select) return;
+
+      try {
+        const result = await this.callGASFunction("getJobTypes");
+        if (result.success && result.data) {
+          select.innerHTML = '<option value="">職種を選択してください</option>';
+          result.data.forEach((job) => {
+            const option = document.createElement("option");
+            option.value = job.id;
+            option.textContent = job.name;
+            select.appendChild(option);
+          });
+        }
+      } catch (error) {
+        console.error("職種一覧取得エラー:", error);
+      }
     }
 
     /**
